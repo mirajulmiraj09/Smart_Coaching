@@ -1,0 +1,3 @@
+Coaching Management System
+
+The Coaching Management System is a role-based, multi-center academic management platform designed to digitize and automate the operations of modern coaching centers. The system supports hierarchical user roles, academic structuring, subscription-based access control, examination management, AI-powered evaluation, and result publishing within a single integrated architecture.
