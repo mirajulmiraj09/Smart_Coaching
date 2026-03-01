@@ -1,0 +1,4 @@
+.env
+db.sqlite3
+smart_ques_env/
+__pycache__
