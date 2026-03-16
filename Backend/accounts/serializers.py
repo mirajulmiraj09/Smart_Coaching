@@ -1,9 +1,10 @@
 from rest_framework import serializers
+import secrets
 from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth import authenticate
 from django.utils import timezone
 from rest_framework_simplejwt.tokens import RefreshToken
-from accounts.models import User, Role, UserProfile, RoleName
+from accounts.models import User, Role, UserProfile, RoleName, EmailVerificationToken
 
 
 class UserProfileSerializer(serializers.ModelSerializer):
@@ -64,12 +65,20 @@ class UserProfileSerializer(serializers.ModelSerializer):
         return self.normalize_profile_data(attrs, role_name)
 
 class RegisterSerializer(serializers.Serializer):
+    CREATION_RULES = {
+        RoleName.COACHING_ADMIN: {RoleName.COACHING_ADMIN, RoleName.COACHING_STAFF},
+        RoleName.COACHING_STAFF: {RoleName.TEACHER, RoleName.COACHING_MANAGER},
+        RoleName.COACHING_MANAGER: {RoleName.STUDENT},
+        RoleName.TEACHER: {RoleName.STUDENT},
+    }
+
     name = serializers.CharField(max_length=255)
     email = serializers.EmailField()
     phone = serializers.CharField(max_length=20, required=False, allow_blank=True)
+    role = serializers.ChoiceField(choices=RoleName.choices, required=False, default=RoleName.STUDENT)
     profile = serializers.DictField(required=False, default=dict)
-    password = serializers.CharField(min_length=8, write_only=True)
-    confirm_password = serializers.CharField(write_only=True)
+    password = serializers.CharField(min_length=8, write_only=True, required=False, allow_blank=True)
+    confirm_password = serializers.CharField(write_only=True, required=False, allow_blank=True)
 
     def validate_email(self, value):
         email = value.lower()
@@ -83,13 +92,30 @@ class RegisterSerializer(serializers.Serializer):
         return value
 
     def validate(self, attrs):
-        if attrs['password'] != attrs['confirm_password']:
-            raise serializers.ValidationError({'confirm_password': 'Passwords do not match.'})
-        validate_password(attrs['password'])
+        creator = self.context.get('creator')
+        target_role = attrs.get('role', RoleName.STUDENT)
+
+        password = attrs.get('password') or ''
+        confirm_password = attrs.get('confirm_password') or ''
+        if creator:
+            attrs.pop('password', None)
+            attrs.pop('confirm_password', None)
+        else:
+            if not password or not confirm_password:
+                raise serializers.ValidationError({'password': 'Password and confirm_password are required.'})
+            if password != confirm_password:
+                raise serializers.ValidationError({'confirm_password': 'Passwords do not match.'})
+            validate_password(password)
+        if creator and not creator.is_superuser:
+            allowed_target_roles = self.CREATION_RULES.get(creator.role_name, set())
+            if target_role not in allowed_target_roles:
+                raise serializers.ValidationError(
+                    {'role': 'You are not allowed to create this role.'}
+                )
 
         profile_serializer = UserProfileSerializer(
             data=attrs.get('profile', {}),
-            context={'role_name': attrs.get('role', RoleName.STUDENT)},
+            context={'role_name': target_role},
         )
         profile_serializer.is_valid(raise_exception=True)
         attrs['profile'] = profile_serializer.validated_data
@@ -97,10 +123,14 @@ class RegisterSerializer(serializers.Serializer):
         return attrs
 
     def create(self, validated_data):
-        validated_data.pop('confirm_password')
+        validated_data.pop('confirm_password', None)
+        provided_password = validated_data.pop('password', None)
         phone = validated_data.pop('phone', None)
         role_name = validated_data.pop('role', RoleName.STUDENT)
         profile_data = validated_data.pop('profile', {})
+        creator = self.context.get('creator')
+
+        is_internal_creation = bool(creator)
 
         role, _ = Role.objects.get_or_create(
             role_name=role_name,
@@ -109,9 +139,10 @@ class RegisterSerializer(serializers.Serializer):
 
         user = User.objects.create_user(
             email=validated_data['email'],
-            password=validated_data['password'],
+            password=provided_password or secrets.token_urlsafe(16),
             name=validated_data['name'],
             phone=phone or None,
+            role=role,
             email_verified=False,
             is_active=False,
         )
@@ -192,5 +223,73 @@ class LoginSerializer(serializers.Serializer):
             'refresh': str(refresh),
             'access': str(refresh.access_token),
         }
+        return attrs
+
+
+class SetPasswordWithOTPSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    otp = serializers.CharField(max_length=6, min_length=6)
+    password = serializers.CharField(min_length=8, write_only=True)
+    confirm_password = serializers.CharField(write_only=True)
+
+    def validate(self, attrs):
+        email = attrs['email'].lower()
+        otp = attrs['otp']
+        password = attrs['password']
+        confirm_password = attrs['confirm_password']
+
+        if password != confirm_password:
+            raise serializers.ValidationError({'confirm_password': 'Passwords do not match.'})
+        validate_password(password)
+
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist as exc:
+            raise serializers.ValidationError({'email': 'No account found with this email.'}) from exc
+
+        token_obj = EmailVerificationToken.objects.filter(
+            user=user,
+            token_type='password_reset',
+            token=otp,
+            is_used=False,
+        ).order_by('-created_at').first()
+
+        if not token_obj:
+            raise serializers.ValidationError({'otp': 'Invalid OTP code.'})
+
+        if token_obj.expires_at <= timezone.now():
+            raise serializers.ValidationError({'otp': 'OTP has expired. Please request a new one.'})
+
+        attrs['user'] = user
+        attrs['token_obj'] = token_obj
+        return attrs
+
+    def save(self, **kwargs):
+        user = self.validated_data['user']
+        token_obj = self.validated_data['token_obj']
+        password = self.validated_data['password']
+
+        token_obj.is_used = True
+        token_obj.save(update_fields=['is_used'])
+
+        user.set_password(password)
+        user.email_verified = True
+        user.is_active = True
+        user.save(update_fields=['password', 'email_verified', 'is_active', 'updated_at'])
+        return user
+
+
+class RequestPasswordSetupOTPSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+
+    def validate(self, attrs):
+        email = attrs['email'].lower()
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist as exc:
+            raise serializers.ValidationError({'email': 'No account found with this email.'}) from exc
+
+        attrs['user'] = user
+        attrs['email'] = email
         return attrs
         

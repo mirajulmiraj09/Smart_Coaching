@@ -1,5 +1,6 @@
 import secrets
 from datetime import timedelta
+from urllib.parse import quote_plus
 
 from django.conf import settings
 from django.core.mail import send_mail
@@ -23,7 +24,10 @@ def create_email_token(user, token_type="email_verification"):
 		is_used=False,
 	).update(is_used=True)
 
-	expiry_minutes = getattr(settings, "EMAIL_VERIFICATION_OTP_EXPIRY_MINUTES", 10)
+	if token_type == 'password_reset':
+		expiry_minutes = getattr(settings, "PASSWORD_RESET_OTP_EXPIRY_MINUTES", 10)
+	else:
+		expiry_minutes = getattr(settings, "EMAIL_VERIFICATION_OTP_EXPIRY_MINUTES", 10)
 	otp = generate_otp(6)
 
 	return EmailVerificationToken.objects.create(
@@ -41,6 +45,49 @@ def send_verification_email(user, token_obj):
 	message = (
 		f"Hi {user.name},\n\n"
 		"Your OTP code for email verification is:\n"
+		f"{token_obj.token}\n\n"
+		f"This OTP will expire in {expiry_minutes} minutes.\n"
+		"If you did not request this, please ignore this email."
+	)
+
+	send_mail(
+		subject=subject,
+		message=message,
+		from_email=getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@example.com"),
+		recipient_list=[user.email],
+		fail_silently=False,
+	)
+
+
+def send_password_setup_link_email(user):
+	"""Send an email containing a password setup link without OTP."""
+	base_url = getattr(settings, "PASSWORD_SETUP_URL", "http://127.0.0.1:8000/api/v1/users/password-setup-start/")
+	setup_url = f"{base_url}?email={quote_plus(user.email)}"
+	subject = "Set your password - Smart Coaching Center"
+	message = (
+		f"Hi {user.name},\n\n"
+		"Your account has been created. Click this link to open the set password form:\n"
+		f"{setup_url}\n\n"
+		"From the form: first click Send OTP, then submit OTP and password to activate account.\n"
+		"If you did not expect this, please contact your coaching center admin."
+	)
+
+	send_mail(
+		subject=subject,
+		message=message,
+		from_email=getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@example.com"),
+		recipient_list=[user.email],
+		fail_silently=False,
+	)
+
+
+def send_password_setup_otp_email(user, token_obj):
+	"""Send OTP email after user requests OTP from setup flow."""
+	expiry_minutes = getattr(settings, "PASSWORD_RESET_OTP_EXPIRY_MINUTES", 10)
+	subject = "Your password setup OTP - Smart Coaching Center"
+	message = (
+		f"Hi {user.name},\n\n"
+		"Use this OTP to complete password setup:\n"
 		f"{token_obj.token}\n\n"
 		f"This OTP will expire in {expiry_minutes} minutes.\n"
 		"If you did not request this, please ignore this email."
