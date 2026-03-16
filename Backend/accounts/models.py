@@ -6,8 +6,6 @@ from accounts.managers import UserManager
 # Create your models name:Role, User, UserProfile
 
 class RoleName(models.TextChoices):
-    SUPER_ADMIN = 'super_admin', 'Super Admin'
-    SUPER_ADMIN_STAFF = 'super_admin_staff', 'Super Admin Staff'
     COACHING_ADMIN = 'coaching_admin', 'Coaching Admin'
     COACHING_MANAGER = 'coaching_manager', 'Coaching Manager'
     COACHING_STAFF = 'coaching_staff', 'Coaching Staff'
@@ -73,12 +71,28 @@ class User(AbstractBaseUser, PermissionsMixin):
     class Meta:
         db_table = 'users'
 
+    ADMIN_ROLES = {RoleName.COACHING_ADMIN, RoleName.COACHING_STAFF}
+
+    def save(self, *args, **kwargs):
+        # Keep Django admin staff flag aligned with role-based access.
+        if self.role_name in self.ADMIN_ROLES:
+            self.is_staff = True
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return f'{self.name} <{self.email}>'
 
     @property
     def role_name(self):
         return self.role.role_name if self.role else None
+
+    @property
+    def isAdmin(self):
+        return self.role_name in self.ADMIN_ROLES
+
+    @property
+    def isStaff(self):
+        return self.role_name in self.ADMIN_ROLES
 
 
 class EmploymentStatus(models.TextChoices):

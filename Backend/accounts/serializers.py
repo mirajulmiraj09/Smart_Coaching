@@ -28,7 +28,6 @@ class UserProfileSerializer(serializers.ModelSerializer):
         RoleName.COACHING_STAFF: STAFF_FIELDS,
         RoleName.COACHING_MANAGER: STAFF_FIELDS,
         RoleName.COACHING_ADMIN: STAFF_FIELDS,
-        RoleName.SUPER_ADMIN_STAFF: STAFF_FIELDS,
     }
 
     class Meta:
