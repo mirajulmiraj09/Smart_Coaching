@@ -7,15 +7,21 @@ from accounts.serializers import (
     RegisterSerializer,
     VerifyEmailOTPSerializer,
     UserProfileSerializer,
+    MeSerializer,
+    ProfileUpdateSerializer,
+    ChangePasswordSerializer,
     LoginSerializer,
     SetPasswordWithOTPSerializer,
     RequestPasswordSetupOTPSerializer,
+    RequestPasswordResetOTPSerializer,
+    ResetPasswordWithOTPSerializer,
 )
 from accounts.utils import (
     create_email_token,
     send_verification_email,
     send_password_setup_link_email,
     send_password_setup_otp_email,
+    send_password_reset_otp_email,
 )
 
 def success_response(data=None, message='Success', status_code=status.HTTP_200_OK):
@@ -181,5 +187,92 @@ class SetPasswordWithOTPView(CreateAPIView):
                 'is_active': user.is_active,
             },
             message='Password set successfully. You can now login.',
+            status_code=status.HTTP_200_OK,
+        )
+
+
+class MeProfileView(APIView):
+    """GET/PATCH /api/v1/me"""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        return success_response(
+            data=MeSerializer(request.user).data,
+            message='Profile fetched successfully.',
+            status_code=status.HTTP_200_OK,
+        )
+
+    def patch(self, request):
+        serializer = ProfileUpdateSerializer(
+            instance=request.user,
+            data=request.data,
+            context={'user': request.user},
+            partial=True,
+        )
+        serializer.is_valid(raise_exception=True)
+        user = serializer.save()
+
+        return success_response(
+            data=MeSerializer(user).data,
+            message='Profile updated successfully.',
+            status_code=status.HTTP_200_OK,
+        )
+
+
+class ChangePasswordView(APIView):
+    """POST /api/v1/change-password"""
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer = ChangePasswordSerializer(data=request.data, context={'user': request.user})
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+
+        return success_response(
+            message='Password changed successfully.',
+            status_code=status.HTTP_200_OK,
+        )
+
+
+class RequestPasswordResetOTPView(CreateAPIView):
+    """POST /api/v1/password/reset/request-otp"""
+
+    permission_classes = [AllowAny]
+    serializer_class = RequestPasswordResetOTPSerializer
+
+    def post(self, request):
+        serializer = RequestPasswordResetOTPSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = serializer.validated_data['user']
+
+        token_obj = create_email_token(user, 'password_reset')
+        send_password_reset_otp_email(user, token_obj)
+
+        return success_response(
+            data={'email': user.email},
+            message='Password reset OTP sent to email.',
+            status_code=status.HTTP_200_OK,
+        )
+
+
+class ResetPasswordWithOTPView(CreateAPIView):
+    """POST /api/v1/password/reset/confirm"""
+
+    permission_classes = [AllowAny]
+    serializer_class = ResetPasswordWithOTPSerializer
+
+    def post(self, request):
+        serializer = ResetPasswordWithOTPSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = serializer.save()
+
+        return success_response(
+            data={
+                'user_id': user.user_id,
+                'email': user.email,
+            },
+            message='Password reset successfully. You can now login.',
             status_code=status.HTTP_200_OK,
         )

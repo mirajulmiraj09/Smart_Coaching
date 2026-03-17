@@ -100,3 +100,24 @@ def send_password_setup_otp_email(user, token_obj):
 		recipient_list=[user.email],
 		fail_silently=False,
 	)
+
+
+def send_password_reset_otp_email(user, token_obj):
+	"""Send OTP email for forgot-password reset flow."""
+	expiry_minutes = getattr(settings, "PASSWORD_RESET_OTP_EXPIRY_MINUTES", 10)
+	subject = "Reset your password - Smart Coaching Center"
+	message = (
+		f"Hi {user.name},\n\n"
+		"Use this OTP to reset your password:\n"
+		f"{token_obj.token}\n\n"
+		f"This OTP will expire in {expiry_minutes} minutes.\n"
+		"If you did not request a password reset, please ignore this email."
+	)
+
+	send_mail(
+		subject=subject,
+		message=message,
+		from_email=getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@example.com"),
+		recipient_list=[user.email],
+		fail_silently=False,
+	)
