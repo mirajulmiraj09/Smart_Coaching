@@ -170,3 +170,43 @@ class AccountSelfServiceTests(TestCase):
 		token.refresh_from_db()
 		self.assertTrue(self.user.check_password('ResetStr0ngPass!123'))
 		self.assertTrue(token.is_used)
+
+
+class UserRoleStaffFlagTests(TestCase):
+	def test_coaching_admin_is_not_system_staff(self):
+		admin_role, _ = Role.objects.get_or_create(
+			role_name=RoleName.COACHING_ADMIN,
+			defaults={'description': 'Coaching Admin'},
+		)
+
+		user = User.objects.create_user(
+			email='coaching.admin@example.com',
+			password='Str0ngPass!123',
+			name='Coaching Admin',
+			role=admin_role,
+			email_verified=True,
+			is_active=True,
+		)
+
+		self.assertFalse(user.is_staff)
+		self.assertTrue(user.isAdmin)
+		self.assertFalse(user.isStaff)
+
+	def test_coaching_staff_is_not_system_staff(self):
+		staff_role, _ = Role.objects.get_or_create(
+			role_name=RoleName.COACHING_STAFF,
+			defaults={'description': 'Coaching Staff'},
+		)
+
+		user = User.objects.create_user(
+			email='coaching.staff@example.com',
+			password='Str0ngPass!123',
+			name='Coaching Staff',
+			role=staff_role,
+			email_verified=True,
+			is_active=True,
+		)
+
+		self.assertFalse(user.is_staff)
+		self.assertTrue(user.isAdmin)
+		self.assertFalse(user.isStaff)

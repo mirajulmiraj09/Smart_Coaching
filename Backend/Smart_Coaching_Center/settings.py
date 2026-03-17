@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     "academics",
     "ai_engine",
     "centers",
+    "teaching",
     "exams",
     "materials",
     "notifications",

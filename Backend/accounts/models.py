@@ -72,11 +72,12 @@ class User(AbstractBaseUser, PermissionsMixin):
         db_table = 'users'
 
     ADMIN_ROLES = {RoleName.COACHING_ADMIN, RoleName.COACHING_STAFF}
+    SYSTEM_STAFF_ROLES = set()
 
     def save(self, *args, **kwargs):
-        # Keep Django admin staff flag aligned with role-based access.
-        if self.role_name in self.ADMIN_ROLES:
-            self.is_staff = True
+        # Only selected roles should have Django admin site access.
+        if not self.is_superuser:
+            self.is_staff = self.role_name in self.SYSTEM_STAFF_ROLES
         super().save(*args, **kwargs)
 
     def __str__(self):
@@ -92,7 +93,7 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     @property
     def isStaff(self):
-        return self.role_name in self.ADMIN_ROLES
+        return self.role_name in self.SYSTEM_STAFF_ROLES
 
 
 class EmploymentStatus(models.TextChoices):
