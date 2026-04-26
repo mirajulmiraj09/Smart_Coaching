@@ -3,6 +3,15 @@ from rest_framework.generics import CreateAPIView
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework import status
 from django.views.generic import TemplateView
+from rest_framework.permissions import IsAuthenticated
+from rest_framework import status
+from django.utils import timezone
+from datetime import timedelta
+
+from accounts.models import User, RoleName
+from centers.models import CoachingCenter, CenterStatus
+from academics.models import Enrollment, Batch
+
 from accounts.serializers import (
     RegisterSerializer,
     VerifyEmailOTPSerializer,
@@ -81,7 +90,6 @@ class VerifyEmailOTPView(CreateAPIView):
             status_code=status.HTTP_200_OK,
         )
 
-
 class LoginView(CreateAPIView):
     """POST /api/v1/auth/login"""
     permission_classes = [AllowAny]
@@ -99,15 +107,14 @@ class LoginView(CreateAPIView):
                 'user_id': user.user_id,
                 'name': user.name,
                 'email': user.email,
-                'role': user.role_name,
+                'role': user.role_name or ('coaching_admin' if user.is_superuser else None),  # ✅ superuser fallback
+                'is_superuser': user.is_superuser,
                 'tokens': tokens,
                 'profile': UserProfileSerializer(user.profile).data,
             },
             message='Login successful.',
             status_code=status.HTTP_200_OK,
         )
-
-
 class RoleBasedUserCreateView(CreateAPIView):
     """POST /api/v1/auth/users/create"""
 
@@ -276,3 +283,12 @@ class ResetPasswordWithOTPView(CreateAPIView):
             message='Password reset successfully. You can now login.',
             status_code=status.HTTP_200_OK,
         )
+
+
+def success_response(data=None, message='Success', status_code=status.HTTP_200_OK):
+    return Response({
+        'success': True,
+        'message': message,
+        'data': data or {},
+    }, status=status_code)
+

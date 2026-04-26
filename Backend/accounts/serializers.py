@@ -308,31 +308,30 @@ class RequestPasswordSetupOTPSerializer(serializers.Serializer):
         attrs['email'] = email
         return attrs
 
-
 class MeSerializer(serializers.ModelSerializer):
-    role = serializers.CharField(source='role_name', read_only=True)
+    role = serializers.SerializerMethodField()  # ← তুমি এটা বদলেছিলে
     profile = serializers.SerializerMethodField()
     editable_profile_fields = serializers.SerializerMethodField()
 
     class Meta:
         model = User
         fields = [
-            'user_id',
-            'name',
-            'email',
-            'phone',
-            'gender',
-            'date_of_birth',
-            'address',
-            'profile_image',
-            'bio',
-            'role',
-            'email_verified',
-            'is_active',
-            'profile',
-            'editable_profile_fields',
+            'user_id', 'name', 'email', 'phone',
+            'gender', 'date_of_birth', 'address',
+            'profile_image', 'bio', 'role',
+            'is_superuser', 'email_verified',
+            'is_active', 'profile', 'editable_profile_fields',
         ]
 
+    # ✅ এই method টা যোগ করো
+    def get_role(self, obj):
+        if obj.role_name:
+            return obj.role_name
+        if obj.is_superuser:
+            return 'coaching_admin'
+        return None
+
+    # ✅ এই method টা আগে থেকেই থাকার কথা — না থাকলে যোগ করো
     def get_profile(self, obj):
         profile = getattr(obj, 'profile', None)
         if not profile:
@@ -341,8 +340,8 @@ class MeSerializer(serializers.ModelSerializer):
 
     def get_editable_profile_fields(self, obj):
         return sorted(UserProfileSerializer.allowed_fields_for_role(obj.role_name))
-
-
+    
+    
 class ProfileUpdateSerializer(serializers.Serializer):
     USER_EDITABLE_FIELDS = {
         'name',

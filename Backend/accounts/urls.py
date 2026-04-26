@@ -25,4 +25,5 @@ urlpatterns = [
     path("users/set-password/", SetPasswordWithOTPView.as_view(), name="set-password-with-otp"),
     path("password/reset/request-otp/", RequestPasswordResetOTPView.as_view(), name="password-reset-request-otp"),
     path("password/reset/confirm/", ResetPasswordWithOTPView.as_view(), name="password-reset-confirm"),
+    
 ]
