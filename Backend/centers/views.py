@@ -4,6 +4,8 @@ from rest_framework.exceptions import NotFound, PermissionDenied, ValidationErro
 from rest_framework.generics import CreateAPIView, ListAPIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import Response
+from accounts.models import Role, RoleName
+from accounts.utils import send_email_and_store_notification
 from centers.models import CoachingCenter, CenterStatus
 from centers.serializers import CoachingCenterApplicationSerializer, CenterApplicationDecisionSerializer
 
@@ -21,6 +23,25 @@ def success_response(data=None, message='Success', status_code=status.HTTP_200_O
 
 def is_center_reviewer(user):
 	return bool(user and user.is_authenticated and (user.is_staff or user.is_superuser))
+
+
+def send_center_approval_email(center, sender):
+	if not center.created_by:
+		return
+
+	subject = "Coaching Admin Application Approved - Smart Coaching Center"
+	message = (
+		f"Hi {center.created_by.name},\n\n"
+		f"Your coaching admin application for '{center.center_name}' has been approved.\n"
+		"You can now manage your coaching center dashboard.\n\n"
+		"Thank you."
+	)
+	send_email_and_store_notification(
+		user=center.created_by,
+		subject=subject,
+		message=message,
+		sender=sender,
+	)
 
 class CenterApplicationCreateView(CreateAPIView):
 	"""POST /api/v1/centers/applications/"""
@@ -92,6 +113,18 @@ class CenterApplicationReviewView(CreateAPIView):
 		center.reviewed_by = request.user
 		center.reviewed_at = timezone.now()
 		center.save(update_fields=['status', 'review_note', 'reviewed_by', 'reviewed_at', 'updated_at'])
+
+		if decision == 'approve' and center.created_by:
+			coaching_admin_role, _ = Role.objects.get_or_create(
+				role_name=RoleName.COACHING_ADMIN,
+				defaults={'description': 'Coaching Admin'},
+			)
+			applicant = center.created_by
+			if applicant.role_id != coaching_admin_role.role_id:
+				applicant.role = coaching_admin_role
+				applicant.save(update_fields=['role', 'updated_at'])
+
+			send_center_approval_email(center, request.user)
 
 		message = 'Application approved successfully.' if decision == 'approve' else 'Application rejected successfully.'
 		return success_response(

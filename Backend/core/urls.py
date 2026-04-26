@@ -6,4 +6,7 @@ urlpatterns = [
     path("centers/", include("centers.urls")),
     path("academics/", include("academics.urls")),
     path("teaching/", include("teaching.urls")),
+    path("exams/", include("exams.urls")),
+    path("ai/", include("ai_engine.urls")),
+    # path("notifications/", include("notifications.urls")),
 ]

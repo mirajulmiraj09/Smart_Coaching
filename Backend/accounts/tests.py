@@ -3,6 +3,7 @@ from django.test import TestCase, override_settings
 from rest_framework.test import APIClient
 
 from accounts.models import EmailVerificationToken, Role, RoleName, User, UserProfile
+from notifications.models import Notification
 
 
 @override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
@@ -32,6 +33,28 @@ class RegistrationOTPFlowTests(TestCase):
 		).first()
 		self.assertIsNotNone(token)
 		self.assertEqual(len(mail.outbox), 1)
+		self.assertTrue(
+			Notification.objects.filter(
+				user=user,
+				type='system',
+				title__icontains='Verify your email',
+			).exists()
+		)
+
+	def test_register_rejects_public_coaching_admin_role(self):
+		payload = {
+			'name': 'Prospective Admin',
+			'email': 'admin.apply@example.com',
+			'password': 'Str0ngPass!123',
+			'confirm_password': 'Str0ngPass!123',
+			'role': RoleName.COACHING_ADMIN,
+		}
+
+		response = self.client.post('/api/v1/register/', payload, format='json')
+
+		self.assertEqual(response.status_code, 400)
+		self.assertIn('role', response.data)
+		self.assertEqual(User.objects.filter(email='admin.apply@example.com').count(), 0)
 
 	def test_verify_otp_activates_user(self):
 		register_payload = {

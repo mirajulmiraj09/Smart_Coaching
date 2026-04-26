@@ -38,6 +38,27 @@ def create_email_token(user, token_type="email_verification"):
 	)
 
 
+def send_email_and_store_notification(*, user, subject, message, sender=None):
+	"""Send email and persist the same event in notifications as a system message."""
+	from notifications.models import Notification, NotificationType
+
+	send_mail(
+		subject=subject,
+		message=message,
+		from_email=getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@example.com"),
+		recipient_list=[user.email],
+		fail_silently=False,
+	)
+
+	Notification.objects.create(
+		user=user,
+		sender=sender,
+		title=f"Email: {subject}",
+		message=message,
+		type=NotificationType.SYSTEM,
+	)
+
+
 def send_verification_email(user, token_obj):
 	"""Send an email containing OTP code for account verification."""
 	expiry_minutes = getattr(settings, "EMAIL_VERIFICATION_OTP_EXPIRY_MINUTES", 10)
@@ -50,13 +71,7 @@ def send_verification_email(user, token_obj):
 		"If you did not request this, please ignore this email."
 	)
 
-	send_mail(
-		subject=subject,
-		message=message,
-		from_email=getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@example.com"),
-		recipient_list=[user.email],
-		fail_silently=False,
-	)
+	send_email_and_store_notification(user=user, subject=subject, message=message)
 
 
 def send_password_setup_link_email(user):
@@ -72,13 +87,7 @@ def send_password_setup_link_email(user):
 		"If you did not expect this, please contact your coaching center admin."
 	)
 
-	send_mail(
-		subject=subject,
-		message=message,
-		from_email=getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@example.com"),
-		recipient_list=[user.email],
-		fail_silently=False,
-	)
+	send_email_and_store_notification(user=user, subject=subject, message=message)
 
 
 def send_password_setup_otp_email(user, token_obj):
@@ -93,13 +102,7 @@ def send_password_setup_otp_email(user, token_obj):
 		"If you did not request this, please ignore this email."
 	)
 
-	send_mail(
-		subject=subject,
-		message=message,
-		from_email=getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@example.com"),
-		recipient_list=[user.email],
-		fail_silently=False,
-	)
+	send_email_and_store_notification(user=user, subject=subject, message=message)
 
 
 def send_password_reset_otp_email(user, token_obj):
@@ -114,10 +117,4 @@ def send_password_reset_otp_email(user, token_obj):
 		"If you did not request a password reset, please ignore this email."
 	)
 
-	send_mail(
-		subject=subject,
-		message=message,
-		from_email=getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@example.com"),
-		recipient_list=[user.email],
-		fail_silently=False,
-	)
+	send_email_and_store_notification(user=user, subject=subject, message=message)

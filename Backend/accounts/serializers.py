@@ -81,6 +81,7 @@ class RegisterSerializer(serializers.Serializer):
         RoleName.COACHING_MANAGER: {RoleName.STUDENT},
         RoleName.TEACHER: {RoleName.STUDENT},
     }
+    PUBLIC_ALLOWED_ROLES = {RoleName.STUDENT, RoleName.TEACHER}
 
     name = serializers.CharField(max_length=255)
     email = serializers.EmailField()
@@ -122,6 +123,10 @@ class RegisterSerializer(serializers.Serializer):
                 raise serializers.ValidationError(
                     {'role': 'You are not allowed to create this role.'}
                 )
+        elif not creator and target_role not in self.PUBLIC_ALLOWED_ROLES:
+            raise serializers.ValidationError(
+                {'role': 'Only student and teacher registration is allowed. Apply separately for coaching admin.'}
+            )
 
         profile_serializer = UserProfileSerializer(
             data=attrs.get('profile', {}),
