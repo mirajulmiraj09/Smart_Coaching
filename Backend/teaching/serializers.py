@@ -4,6 +4,7 @@ from academics.models import Course, Batch
 from centers.models import CoachingCenter, CenterMembership
 from teaching.models import Subject, TeachingMaterial, TeacherSubjectBatchAssignment
 
+# teaching/serializers.py — SubjectSerializer এ শুধু read_only_fields পরিবর্তন করুন
 
 class SubjectSerializer(serializers.ModelSerializer):
     teacher_name = serializers.CharField(source='teacher.name', read_only=True)
@@ -15,8 +16,14 @@ class SubjectSerializer(serializers.ModelSerializer):
             'teacher_name', 'subject_name', 'subject_code',
             'assigned_date', 'is_active', 'created_at', 'updated_at',
         ]
-        read_only_fields = ['subject_id', 'created_at', 'updated_at']
-
+       
+        read_only_fields = [
+            'subject_id',
+            'course',           
+            'coaching_center', 
+            'created_at',
+            'updated_at',
+        ]
 
 class CourseSerializer(serializers.ModelSerializer):
     class Meta:
