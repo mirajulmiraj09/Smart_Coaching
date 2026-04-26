@@ -15,9 +15,9 @@ const RegisterPage = () => {
     name: '',
     email: '',
     phone: '',
-    role: 'student',         // default — backend default is also STUDENT
+    role: 'student',      
     password: '',
-    confirm_password: '',    // ✅ Required by RegisterSerializer
+    confirm_password: '',    
   });
 
   const handleChange = (e) => {

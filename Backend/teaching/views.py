@@ -363,3 +363,6 @@ class TeacherAssignmentListView(ListAPIView):
         queryset = self.get_queryset()
         serializer = self.get_serializer(queryset, many=True)
         return success_response(data={'results': serializer.data}, message='Assignments fetched.')
+
+
+

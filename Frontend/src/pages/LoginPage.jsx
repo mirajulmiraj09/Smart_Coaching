@@ -30,7 +30,6 @@ const LoginPage = () => {
     } catch (error) {
       const data = error.response?.data?.data || error.response?.data || {};
 
-      // ✅ Always produce a plain string — prevents .toLowerCase() crash
       const errorMessage = String(
         data.detail ||
         data.non_field_errors?.[0] ||
@@ -41,7 +40,7 @@ const LoginPage = () => {
         'Login failed. Please check your email and password.'
       );
 
-      // Guide user to verify email if account is inactive
+      // ✅ Auto-redirect to verify-otp if account not verified
       if (
         errorMessage.toLowerCase().includes('inactive') ||
         errorMessage.toLowerCase().includes('not verified') ||
@@ -58,6 +57,11 @@ const LoginPage = () => {
       setLoading(false);
     }
   };
+
+  // ✅ Navigate to verify-otp WITH email from the form (if typed), else without
+const handleVerifyClick = () => {
+  navigate('/verify-otp', { state: { email: formData.email } });
+};
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 relative overflow-hidden">
@@ -133,7 +137,7 @@ const LoginPage = () => {
             </div>
           </div>
 
-          {/* Submit Button */}
+          {/* Submit */}
           <button
             type="submit"
             disabled={loading}
@@ -150,15 +154,19 @@ const LoginPage = () => {
           </button>
         </form>
 
-        {/* Verify email shortcut */}
+        {/* ✅ Verify email — passes typed email as state so VerifyOTPPage pre-fills it */}
         <div className="mt-4 text-center">
           <span className="text-xs text-gray-400">Didn't get the OTP? </span>
-          <Link to="/verify-otp" className="text-xs text-blue-400 hover:text-blue-300 transition">
+          <button
+            type="button"
+            onClick={handleVerifyClick}
+            className="text-xs text-blue-400 hover:text-blue-300 transition underline-offset-2 hover:underline"
+          >
             Verify your email
-          </Link>
+          </button>
         </div>
 
-        {/* Register Link */}
+        {/* Register */}
         <p className="text-center text-gray-400 mt-4">
           Don't have an account?{' '}
           <Link to="/register" className="text-blue-400 hover:text-blue-300 font-semibold transition">

@@ -16,11 +16,8 @@ export const useAuthStore = create(
           const token = localStorage.getItem('access_token');
           if (token) {
             api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-
-            // Verify token is still valid by fetching /me/
             const response = await api.get('/me/');
             const userData = response.data.data;
-
             const user = {
               user_id:       userData.user_id || userData.id,
               name:          userData.name,
@@ -32,13 +29,7 @@ export const useAuthStore = create(
               profile_image: userData.profile_image,
               phone:         userData.phone,
             };
-
-            set({
-              user,
-              token,
-              isAuthenticated: true,
-              isInitialized: true,
-            });
+            set({ user, token, isAuthenticated: true, isInitialized: true });
           } else {
             set({ isInitialized: true });
           }
@@ -47,12 +38,7 @@ export const useAuthStore = create(
           localStorage.removeItem('access_token');
           localStorage.removeItem('refresh_token');
           delete api.defaults.headers.common['Authorization'];
-          set({
-            user: null,
-            token: null,
-            isAuthenticated: false,
-            isInitialized: true,
-          });
+          set({ user: null, token: null, isAuthenticated: false, isInitialized: true });
         }
       },
 
@@ -67,19 +53,28 @@ export const useAuthStore = create(
         }
       },
 
+      // ── Verify Email OTP ───────────────────────────────────────────────
+      // POST /accounts/register/verify-otp/ → { email, otp }
+      verifyOTP: async ({ email, otp }) => {
+        try {
+          const response = await api.post('/register/verify-otp/', { email, otp });
+          return response.data;
+        } catch (error) {
+          console.error('OTP verify error:', error.response?.data);
+          throw error;
+        }
+      },
+
       // ── Login ──────────────────────────────────────────────────────────
       login: async (email, password) => {
         try {
           const response = await api.post('/login/', { email, password });
           const responseData = response.data.data;
-
           const access  = responseData.tokens?.access;
           const refresh = responseData.tokens?.refresh;
-
           if (!access || !refresh) {
             throw new Error('No tokens received from server');
           }
-
           const user = {
             user_id:       responseData.user_id,
             name:          responseData.name,
@@ -91,13 +86,10 @@ export const useAuthStore = create(
             profile_image: responseData.profile_image,
             phone:         responseData.phone,
           };
-
           localStorage.setItem('access_token', access);
           localStorage.setItem('refresh_token', refresh);
           api.defaults.headers.common['Authorization'] = `Bearer ${access}`;
-
           set({ user, token: access, isAuthenticated: true });
-
           return response.data;
         } catch (error) {
           console.error('Login error:', error.response?.data || error.message);
@@ -111,11 +103,7 @@ export const useAuthStore = create(
         localStorage.removeItem('refresh_token');
         localStorage.removeItem('auth-storage');
         delete api.defaults.headers.common['Authorization'];
-        set({
-          user: null,
-          token: null,
-          isAuthenticated: false,
-        });
+        set({ user: null, token: null, isAuthenticated: false });
       },
 
       // ── Update profile ─────────────────────────────────────────────────
@@ -123,7 +111,6 @@ export const useAuthStore = create(
         try {
           const response = await api.patch('/me/', data);
           const userData = response.data.data;
-
           const user = {
             user_id:       userData.user_id || userData.id,
             name:          userData.name,
@@ -135,7 +122,6 @@ export const useAuthStore = create(
             profile_image: userData.profile_image,
             phone:         userData.phone,
           };
-
           set({ user });
           return response.data;
         } catch (error) {
