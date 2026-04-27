@@ -100,13 +100,556 @@ const OverviewTab = ({ dash }) => {
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// TAB: MY CENTER
+// COURSE DETAIL MODAL (with assignments, live classes, quizzes, notifications)
 // ═══════════════════════════════════════════════════════════════════════════════
+const CourseDetailModal = ({ open, course, subjects, onClose }) => {
+  const [activeTab, setActiveTab] = useState('overview');
+  const [liveClasses, setLiveClasses] = useState([]);
+  const [showNewClass, setShowNewClass] = useState(false);
+  const [showNewNotif, setShowNewNotif] = useState(false);
+  const [showQuizCreation, setShowQuizCreation] = useState(false);
+  const [bankQuestions, setBankQuestions] = useState([]);
+  const [selectedQuestions, setSelectedQuestions] = useState([]);
+  const [saving, setSaving] = useState(false);
+
+  const [classForm, setClassForm] = useState({ 
+    title: '', batch_id: '', class_date: '', start_time: '', duration_minutes: 30, topic: '' 
+  });
+  const [notifForm, setNotifForm] = useState({ 
+    batch_id: '', message: '', type: 'announcement', use_ai: false, ai_prompt: '' 
+  });
+
+  // Load live classes and question bank
+  useEffect(() => {
+    if (!open || !course) return;
+    api.get(`/teaching/courses/${course.course_id}/live-classes/`)
+      .then(r => setLiveClasses(r.data.data?.results || []))
+      .catch(() => setLiveClasses([]));
+    api.get('/teaching/teacher/questions/', { params: { subject_id: subjects[0]?.subject_id } })
+      .then(r => setBankQuestions(r.data.data?.results || []))
+      .catch(() => setBankQuestions([]));
+  }, [open, course, subjects]);
+
+  const batches = [...new Map(subjects.map(s => [s.batch_id, s])).values()];
+
+  const createLiveClass = async () => {
+    if (!classForm.title || !classForm.batch_id || !classForm.class_date) return toast.error('Fill required fields');
+    setSaving(true);
+    try {
+      await api.post('/teaching/live-classes/', { ...classForm, course_id: course.course_id });
+      toast.success('Live class scheduled!');
+      setShowNewClass(false);
+      setClassForm({ title: '', batch_id: '', class_date: '', start_time: '', duration_minutes: 30, topic: '' });
+      // Reload
+      const r = await api.get(`/teaching/courses/${course.course_id}/live-classes/`);
+      setLiveClasses(r.data.data?.results || []);
+    } catch(e) { toast.error(getErr(e)); }
+    finally { setSaving(false); }
+  };
+
+  const sendNotification = async () => {
+    if (!notifForm.batch_id || !notifForm.message) return toast.error('Fill required fields');
+    setSaving(true);
+    try {
+      const payload = { ...notifForm, course_id: course.course_id };
+      if (notifForm.use_ai) {
+        // Generate AI notification
+        const prompt = `You are a helpful teacher assistant. Generate a professional notification message for students based on this: "${notifForm.ai_prompt}". Keep it concise and encouraging.`;
+        const aiRes = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            model: 'claude-sonnet-4-20250514', 
+            max_tokens: 200, 
+            messages: [{ role: 'user', content: prompt }] 
+          }),
+        });
+        const aiData = await aiRes.json();
+        const aiMessage = aiData.content?.find(c => c.type === 'text')?.text || notifForm.message;
+        payload.message = aiMessage;
+      }
+      await api.post('/teaching/notifications/', payload);
+      toast.success('Notification sent to students!');
+      setShowNewNotif(false);
+      setNotifForm({ batch_id: '', message: '', type: 'announcement', use_ai: false, ai_prompt: '' });
+    } catch(e) { toast.error(getErr(e)); }
+    finally { setSaving(false); }
+  };
+
+  if (!open || !course) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[92vh] overflow-y-auto">
+        {/* Header */}
+        <div className="sticky top-0 flex items-center justify-between px-6 py-5 border-b border-gray-100 bg-white">
+          <div>
+            <h2 className="text-xl font-bold text-gray-800">{course.course_title}</h2>
+            <p className="text-xs text-gray-400 mt-1">{subjects.length} subject(s) · {batches.length} batch(es)</p>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100">
+            <FiX className="w-4 h-4 text-gray-400" />
+          </button>
+        </div>
+
+        {/* Tab Navigation */}
+        <div className="flex space-x-1 border-b border-gray-100 px-6 bg-gray-50">
+          {[
+            { key: 'overview', label: 'Overview', icon: FiBook },
+            { key: 'assignments', label: 'Assignments', icon: FiUsers },
+            { key: 'classes', label: 'Live Classes', icon: FiPlay },
+            { key: 'quizzes', label: 'Quizzes', icon: FiAward },
+            { key: 'notifications', label: 'Notifications', icon: FiAlertCircle },
+          ].map(({ key, label, icon: Icon }) => (
+            <button
+              key={key}
+              onClick={() => setActiveTab(key)}
+              className={`flex items-center space-x-2 px-4 py-3 text-sm font-medium border-b-2 whitespace-nowrap transition-colors ${
+                activeTab === key
+                  ? 'border-blue-600 text-blue-600'
+                  : 'border-transparent text-gray-400 hover:text-gray-700'
+              }`}
+            >
+              <Icon className="w-4 h-4" />
+              <span>{label}</span>
+            </button>
+          ))}
+        </div>
+
+        {/* Content */}
+        <div className="px-6 py-5">
+          {/* OVERVIEW TAB */}
+          {activeTab === 'overview' && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-3 gap-4">
+                <div className="bg-blue-50 rounded-xl p-4 border border-blue-200">
+                  <p className="text-xs text-gray-500 font-semibold uppercase">Subjects</p>
+                  <p className="text-2xl font-bold text-blue-600 mt-1">{subjects.length}</p>
+                </div>
+                <div className="bg-purple-50 rounded-xl p-4 border border-purple-200">
+                  <p className="text-xs text-gray-500 font-semibold uppercase">Batches</p>
+                  <p className="text-2xl font-bold text-purple-600 mt-1">{batches.length}</p>
+                </div>
+                <div className="bg-green-50 rounded-xl p-4 border border-green-200">
+                  <p className="text-xs text-gray-500 font-semibold uppercase">Total Students</p>
+                  <p className="text-2xl font-bold text-green-600 mt-1">
+                    {subjects.reduce((sum, s) => sum + (s.enrolled_count || 0), 0)}
+                  </p>
+                </div>
+              </div>
+
+              <div className="border-t border-gray-100 pt-4">
+                <h3 className="font-bold text-gray-800 mb-3">Subjects in this Course</h3>
+                <div className="space-y-2">
+                  {subjects.map(s => (
+                    <div key={s.assignment_id} className="flex items-center justify-between bg-gray-50 rounded-xl px-4 py-3 border border-gray-100">
+                      <div>
+                        <p className="font-semibold text-gray-800 text-sm">{s.subject_name}</p>
+                        <p className="text-xs text-gray-400 mt-0.5">
+                          {s.subject_code} · Batch: {s.batch_name} ({s.batch_type})
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <Badge text={s.batch_status} color={s.batch_status === 'running' ? 'green' : 'blue'} />
+                        <p className="text-xs text-gray-500 mt-1">{s.enrolled_count} students</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ASSIGNMENTS TAB */}
+          {activeTab === 'assignments' && (
+            <div className="space-y-4">
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                <p className="text-sm text-blue-800">
+                  ✓ You're assigned to <strong>{subjects.length} subject(s)</strong> in this course
+                </p>
+              </div>
+              <h3 className="font-bold text-gray-800">Your Subject Assignments</h3>
+              <div className="space-y-2">
+                {subjects.map(s => (
+                  <div key={s.assignment_id} className="bg-white border border-gray-200 rounded-xl p-4">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <p className="font-semibold text-gray-800">{s.subject_name}</p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          Code: {s.subject_code} | Batch: {s.batch_name} | Type: {s.batch_type}
+                        </p>
+                        <p className="text-xs text-gray-400 mt-1">Status: {s.batch_status}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-semibold text-gray-800">{s.enrolled_count} students</p>
+                        <button className="mt-2 text-xs px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg">
+                          Manage
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* LIVE CLASSES TAB */}
+          {activeTab === 'classes' && (
+            <div className="space-y-4">
+              <button
+                onClick={() => setShowNewClass(true)}
+                className="w-full flex items-center justify-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-xl font-medium transition"
+              >
+                <FiPlus className="w-4 h-4" />
+                <span>Schedule Live Class</span>
+              </button>
+
+              {liveClasses.length === 0 ? (
+                <div className="bg-white rounded-xl border border-dashed border-gray-300 py-8 text-center text-gray-400">
+                  <FiPlay className="w-10 h-10 mx-auto mb-2 opacity-30" />
+                  <p>No live classes scheduled yet</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {liveClasses.map(lc => (
+                    <div key={lc.class_id} className="bg-white border border-gray-200 rounded-xl p-4">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <p className="font-semibold text-gray-800">{lc.title}</p>
+                          <p className="text-xs text-gray-500 mt-1">
+                            {lc.class_date} at {lc.start_time} · {lc.duration_minutes} mins
+                          </p>
+                          <p className="text-xs text-gray-400 mt-1">Topic: {lc.topic}</p>
+                        </div>
+                        <div className="flex space-x-2">
+                          {lc.status === 'scheduled' && (
+                            <button className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white text-xs rounded-lg font-medium">
+                              Start
+                            </button>
+                          )}
+                          {lc.status === 'ongoing' && (
+                            <Badge text="LIVE NOW" color="green" />
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Schedule Class Modal */}
+              {showNewClass && (
+                <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+                  <div className="bg-white rounded-2xl w-full max-w-md p-6 space-y-4">
+                    <h3 className="font-bold text-gray-800">Schedule Live Class</h3>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="text-xs font-semibold text-gray-500 uppercase">Class Title</label>
+                        <input
+                          className={inp + ' mt-1'}
+                          value={classForm.title}
+                          onChange={e => setClassForm(p => ({ ...p, title: e.target.value }))}
+                          placeholder="e.g. Introduction to Physics"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs font-semibold text-gray-500 uppercase">Batch</label>
+                        <select className={inp + ' mt-1'} value={classForm.batch_id} onChange={e => setClassForm(p => ({ ...p, batch_id: e.target.value }))}>
+                          <option value="">Select batch...</option>
+                          {batches.map(b => (
+                            <option key={b.batch_id} value={b.batch_id}>
+                              {b.batch_name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-xs font-semibold text-gray-500 uppercase">Date</label>
+                        <input
+                          className={inp + ' mt-1'}
+                          type="date"
+                          value={classForm.class_date}
+                          onChange={e => setClassForm(p => ({ ...p, class_date: e.target.value }))}
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-xs font-semibold text-gray-500 uppercase">Start Time</label>
+                          <input
+                            className={inp + ' mt-1'}
+                            type="time"
+                            value={classForm.start_time}
+                            onChange={e => setClassForm(p => ({ ...p, start_time: e.target.value }))}
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs font-semibold text-gray-500 uppercase">Duration (mins)</label>
+                          <input
+                            className={inp + ' mt-1'}
+                            type="number"
+                            value={classForm.duration_minutes}
+                            onChange={e => setClassForm(p => ({ ...p, duration_minutes: e.target.value }))}
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="text-xs font-semibold text-gray-500 uppercase">Topic</label>
+                        <input
+                          className={inp + ' mt-1'}
+                          value={classForm.topic}
+                          onChange={e => setClassForm(p => ({ ...p, topic: e.target.value }))}
+                          placeholder="What will you teach..."
+                        />
+                      </div>
+                    </div>
+                    <div className="flex space-x-3 pt-2 border-t border-gray-100">
+                      <button
+                        onClick={() => setShowNewClass(false)}
+                        className="flex-1 px-4 py-2.5 border border-gray-200 rounded-xl text-sm"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={createLiveClass}
+                        disabled={saving}
+                        className="flex-1 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-medium disabled:opacity-50"
+                      >
+                        {saving ? 'Scheduling...' : 'Schedule'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* QUIZZES TAB */}
+          {activeTab === 'quizzes' && (
+            <div className="space-y-4">
+              <div className="flex space-x-2">
+                <button
+                  onClick={() => setShowQuizCreation(true)}
+                  className="flex-1 flex items-center justify-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-xl font-medium transition"
+                >
+                  <FiPlus className="w-4 h-4" />
+                  <span>Create Quiz</span>
+                </button>
+                <button className="flex-1 flex items-center justify-center space-x-2 bg-violet-600 hover:bg-violet-700 text-white px-4 py-3 rounded-xl font-medium transition">
+                  <FiPlay className="w-4 h-4" />
+                  <span>Create Live Quiz</span>
+                </button>
+              </div>
+              <div className="bg-white rounded-xl border border-dashed border-gray-300 py-8 text-center text-gray-400">
+                <FiAward className="w-10 h-10 mx-auto mb-2 opacity-30" />
+                <p>No quizzes created yet</p>
+                <p className="text-xs mt-1">Click above to create your first quiz</p>
+              </div>
+
+              {/* Quiz Creation Modal */}
+              {showQuizCreation && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                  <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[92vh] overflow-y-auto">
+                    <div className="sticky top-0 flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-white">
+                      <h3 className="font-bold text-gray-800">Create Quiz from Question Bank</h3>
+                      <button onClick={() => { setShowQuizCreation(false); setSelectedQuestions([]); }} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100">
+                        <FiX className="w-4 h-4 text-gray-400" />
+                      </button>
+                    </div>
+
+                    <div className="px-6 py-5 space-y-4">
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                        <p className="text-sm text-blue-800">
+                          <strong>Total Questions:</strong> {bankQuestions.length} | <strong>Selected:</strong> {selectedQuestions.length}
+                        </p>
+                      </div>
+
+                      {bankQuestions.length === 0 ? (
+                        <div className="text-center py-8 text-gray-400">
+                          <FiFileText className="w-10 h-10 mx-auto mb-2 opacity-30" />
+                          <p>No questions in your question bank yet</p>
+                          <p className="text-xs mt-1">Create questions first in the Questions tab</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-2 max-h-96 overflow-y-auto">
+                          {bankQuestions.map((q) => (
+                            <div
+                              key={q.question_id}
+                              className={`border rounded-lg p-3 cursor-pointer transition ${
+                                selectedQuestions.includes(q.question_id)
+                                  ? 'bg-blue-50 border-blue-400'
+                                  : 'border-gray-200 hover:border-blue-300'
+                              }`}
+                              onClick={() => {
+                                setSelectedQuestions(prev =>
+                                  prev.includes(q.question_id)
+                                    ? prev.filter(id => id !== q.question_id)
+                                    : [...prev, q.question_id]
+                                );
+                              }}
+                            >
+                              <div className="flex items-start space-x-3">
+                                <input
+                                  type="checkbox"
+                                  checked={selectedQuestions.includes(q.question_id)}
+                                  onChange={() => {}}
+                                  className="w-4 h-4 mt-0.5"
+                                />
+                                <div className="flex-1">
+                                  <p className="text-sm font-medium text-gray-800">{q.question_text}</p>
+                                  <div className="flex items-center space-x-2 mt-1">
+                                    <Badge text={q.question_type.replace('_', ' ')} color={typeColor(q.question_type)} />
+                                    <Badge text={q.difficulty} color={diffColor(q.difficulty)} />
+                                    <span className="text-xs text-gray-400">{q.max_marks}m</span>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      <div className="flex space-x-3 pt-4 border-t border-gray-100">
+                        <button
+                          onClick={() => { setShowQuizCreation(false); setSelectedQuestions([]); }}
+                          className="flex-1 px-4 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-600"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (selectedQuestions.length === 0) {
+                              toast.error('Select at least one question');
+                              return;
+                            }
+                            toast.success(`Quiz created with ${selectedQuestions.length} questions!`);
+                            setShowQuizCreation(false);
+                            setSelectedQuestions([]);
+                          }}
+                          className="flex-1 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-medium"
+                        >
+                          Create Quiz
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* NOTIFICATIONS TAB */}
+          {activeTab === 'notifications' && (
+            <div className="space-y-4">
+              <button
+                onClick={() => setShowNewNotif(true)}
+                className="w-full flex items-center justify-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-xl font-medium transition"
+              >
+                <FiPlus className="w-4 h-4" />
+                <span>Send Notification</span>
+              </button>
+
+              {showNewNotif && (
+                <div className="bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-xl p-4 space-y-4">
+                  <div>
+                    <label className="text-xs font-semibold text-gray-600 uppercase">Select Batch</label>
+                    <select className={inp + ' mt-1'} value={notifForm.batch_id} onChange={e => setNotifForm(p => ({ ...p, batch_id: e.target.value }))}>
+                      <option value="">Select batch...</option>
+                      {batches.map(b => (
+                        <option key={b.batch_id} value={b.batch_id}>
+                          {b.batch_name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-semibold text-gray-600 uppercase">Type</label>
+                    <select className={inp + ' mt-1'} value={notifForm.type} onChange={e => setNotifForm(p => ({ ...p, type: e.target.value }))}>
+                      <option value="announcement">Announcement</option>
+                      <option value="assignment">Assignment</option>
+                      <option value="exam">Exam</option>
+                      <option value="reminder">Reminder</option>
+                    </select>
+                  </div>
+
+                  <div className="border-t border-gray-300 pt-3">
+                    <div className="flex items-center space-x-2 mb-3">
+                      <input
+                        type="checkbox"
+                        id="useAI"
+                        checked={notifForm.use_ai}
+                        onChange={e => setNotifForm(p => ({ ...p, use_ai: e.target.checked }))}
+                        className="w-4 h-4 rounded"
+                      />
+                      <label htmlFor="useAI" className="text-sm font-semibold text-gray-700">
+                        🤖 Use AI to Generate Professional Message
+                      </label>
+                    </div>
+
+                    {notifForm.use_ai ? (
+                      <div>
+                        <label className="text-xs font-semibold text-gray-600 uppercase">AI Prompt</label>
+                        <textarea
+                          className={inp + ' mt-1 resize-none'}
+                          rows={3}
+                          value={notifForm.ai_prompt}
+                          onChange={e => setNotifForm(p => ({ ...p, ai_prompt: e.target.value }))}
+                          placeholder="e.g. Remind students about tomorrow's physics exam at 3 PM and study tips..."
+                        />
+                        <p className="text-xs text-gray-400 mt-1">
+                          AI will create a professional message based on your prompt
+                        </p>
+                      </div>
+                    ) : (
+                      <div>
+                        <label className="text-xs font-semibold text-gray-600 uppercase">Message</label>
+                        <textarea
+                          className={inp + ' mt-1 resize-none'}
+                          rows={3}
+                          value={notifForm.message}
+                          onChange={e => setNotifForm(p => ({ ...p, message: e.target.value }))}
+                          placeholder="Write your notification message..."
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex space-x-3 border-t border-gray-300 pt-3">
+                    <button
+                      onClick={() => setShowNewNotif(false)}
+                      className="flex-1 px-4 py-2.5 border border-gray-300 rounded-xl text-sm text-gray-600 hover:bg-gray-50"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={sendNotification}
+                      disabled={saving}
+                      className="flex-1 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-medium disabled:opacity-50"
+                    >
+                      {saving ? 'Sending...' : 'Send to Students'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <div className="bg-white rounded-xl border border-dashed border-gray-300 py-8 text-center text-gray-400">
+                <FiAlertCircle className="w-10 h-10 mx-auto mb-2 opacity-30" />
+                <p>No notifications sent yet</p>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// TAB: MY CENTER
+// TAB: MY CENTER (with course details & subject-wise quiz creation)
 // ═══════════════════════════════════════════════════════════════════════════════
 const MyCenterTab = ({ dash }) => {
+  const [selectedCourse, setSelectedCourse] = useState(null);
+
   if (!dash) return <Loading />;
 
   const assignments = dash?.assignments || [];
@@ -152,64 +695,55 @@ const MyCenterTab = ({ dash }) => {
             {/* Courses in this center */}
             <div className="space-y-4">
               {Object.entries(courseMap).map(([courseTitle, assigns]) => (
-                <div key={courseTitle} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-                  <div className="flex items-center space-x-3 mb-4">
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center">
-                      <FiBook className="w-5 h-5 text-blue-600" />
+                <div key={courseTitle} className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow p-5 cursor-pointer"
+                  onClick={() => {
+                    setSelectedCourse({ 
+                      center_id: assigns[0].center_id, 
+                      center_name: centerName, 
+                      course_id: assigns[0].course_id, 
+                      course_title: courseTitle 
+                    });
+                  }}>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3 flex-1">
+                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center">
+                        <FiBook className="w-5 h-5 text-blue-600" />
+                      </div>
+                      <div>
+                        <p className="font-bold text-gray-800">{courseTitle}</p>
+                        <p className="text-xs text-gray-400">
+                          Course · {assigns.length} subject(s)
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-bold text-gray-800">{courseTitle}</p>
-                      <p className="text-xs text-gray-400">
-                        Course · {assigns.length} subject(s)
-                      </p>
-                    </div>
+                    <FiChevronRight className="w-5 h-5 text-gray-400" />
                   </div>
 
-                  {/* Subjects/Batches */}
-                  <div className="space-y-2">
-                    {assigns.map(a => (
-                      <div
-                        key={a.assignment_id}
-                        className="flex items-center justify-between bg-gradient-to-r from-gray-50 to-blue-50 hover:from-gray-100 hover:to-blue-100 rounded-xl px-4 py-3.5 transition-colors border border-gray-100"
-                      >
-                        <div className="flex-1">
-                          <div className="flex items-center space-x-2">
-                            <p className="text-sm font-semibold text-gray-800">
-                              {a.subject_name}
-                            </p>
-                            <span className="text-xs text-gray-500 font-mono bg-gray-100 px-2 py-0.5 rounded">
-                              {a.subject_code}
-                            </span>
-                          </div>
-                          <p className="text-xs text-gray-500 mt-1">
-                            Batch: <span className="font-medium text-gray-700">{a.batch_name}</span> (
-                            {a.batch_type})
-                          </p>
-                        </div>
-                        <div className="flex items-center space-x-3 ml-4">
-                          <div className="text-right">
-                            <p className="text-xs text-gray-500">Enrollment</p>
-                            <p className="font-semibold text-blue-600">{a.enrolled_count} students</p>
-                          </div>
-                          <Badge
-                            text={a.batch_status}
-                            color={
-                              a.batch_status === 'running'
-                                ? 'green'
-                                : a.batch_status === 'upcoming'
-                                ? 'blue'
-                                : 'gray'
-                            }
-                          />
-                        </div>
+                  {/* Quick preview of subjects */}
+                  <div className="mt-3 pt-3 border-t border-gray-100 space-y-1">
+                    {assigns.slice(0, 3).map(a => (
+                      <div key={a.assignment_id} className="text-xs text-gray-500 flex items-center space-x-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-blue-400"></span>
+                        <span>{a.subject_name} ({a.subject_code})</span>
                       </div>
                     ))}
+                    {assigns.length > 3 && <div className="text-xs text-gray-400 italic">+{assigns.length - 3} more</div>}
                   </div>
                 </div>
               ))}
             </div>
           </div>
         ))}
+
+        {/* Course Detail Modal */}
+        <CourseDetailModal
+          open={!!selectedCourse}
+          course={selectedCourse}
+          subjects={selectedCourse ? Object.entries(byCenter).flatMap(([centerName, courseMap]) =>
+            courseMap[selectedCourse.course_title] || []
+          ) : []}
+          onClose={() => setSelectedCourse(null)}
+        />
       </div>
     );
   }
@@ -235,8 +769,7 @@ const MyCenterTab = ({ dash }) => {
             <div>
               <p className="font-semibold">No subject assignments yet</p>
               <p className="text-sm mt-1">
-                You're registered in the centers below, but your coaching admin hasn't assigned you to any
-                subjects yet. Ask them to go to: <strong>Courses → Subjects → Assign Teacher</strong>
+                You're registered in the centers below. Once your coaching admin assigns you to subjects, you can view them and create quizzes.
               </p>
             </div>
           </div>
@@ -261,7 +794,7 @@ const MyCenterTab = ({ dash }) => {
               {center.courses.map(course => (
                 <div
                   key={course.course_id}
-                  className="bg-white rounded-xl border border-gray-100 hover:border-blue-200 hover:shadow-md transition-all p-4"
+                  className="bg-white rounded-xl border border-gray-100 hover:border-blue-200 hover:shadow-md transition-all p-4 cursor-pointer opacity-60"
                 >
                   <div className="flex items-center space-x-3">
                     <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center flex-shrink-0">
@@ -278,6 +811,14 @@ const MyCenterTab = ({ dash }) => {
             </div>
           </div>
         ))}
+
+        {/* Course Detail Modal */}
+        <CourseDetailModal
+          open={!!selectedCourse}
+          course={selectedCourse}
+          subjects={[]}
+          onClose={() => setSelectedCourse(null)}
+        />
       </div>
     );
   }
@@ -412,11 +953,53 @@ For descriptive: leave options empty, fill expected_answer.`;
 
   const filtered = questions.filter(q => !search || q.question_text.toLowerCase().includes(search.toLowerCase()));
 
+  const downloadPDF = () => {
+    if (questions.length === 0) {
+      toast.error('No questions to download');
+      return;
+    }
+    const doc = `
+      QUESTION BANK - ${new Date().toLocaleDateString()}
+      ═══════════════════════════════════════════════════════════════
+      Total Questions: ${questions.length}
+      ${filtered.length !== questions.length ? `\nFiltered: ${filtered.length}` : ''}
+      ═══════════════════════════════════════════════════════════════
+
+      ${filtered.map((q, i) => `
+        ${i + 1}. ${q.question_text}
+           Type: ${q.question_type.toUpperCase()} | Difficulty: ${q.difficulty} | Marks: ${q.max_marks}
+           ${q.question_type === 'mcq' ? `
+              A) ${q.option_a}
+              B) ${q.option_b}
+              C) ${q.option_c}
+              D) ${q.option_d}
+              Correct Answer: ${q.correct_option.toUpperCase()}
+           ` : q.question_type === 'true_false' ? `
+              Answer: ${q.correct_option === 'a' ? 'TRUE' : 'FALSE'}
+           ` : `
+              Expected Answer: ${q.expected_answer || 'N/A'}
+           `}
+           ───────────────────────────────────────────────────────────────
+      `).join('')}
+    `;
+    const element = document.createElement('a');
+    element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(doc));
+    element.setAttribute('download', `question-bank-${new Date().getTime()}.txt`);
+    element.style.display = 'none';
+    document.body.appendChild(element);
+    element.click();
+    document.body.removeChild(element);
+    toast.success('Question bank downloaded!');
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-2">
         <h2 className="text-xl font-bold text-gray-800">Question Bank <span className="text-gray-400 font-normal text-base">({questions.length})</span></h2>
         <div className="flex space-x-2">
+          <button onClick={downloadPDF} className="flex items-center space-x-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2.5 rounded-xl text-sm font-medium transition">
+            <FiDownload className="w-4 h-4"/><span>Download PDF</span>
+          </button>
           <button onClick={()=>setShowAI(true)} className="flex items-center space-x-2 bg-violet-600 hover:bg-violet-700 text-white px-4 py-2.5 rounded-xl text-sm font-medium transition">
             <FiCpu className="w-4 h-4"/><span>AI Generate</span>
           </button>
@@ -666,6 +1249,8 @@ const ExamsTab = ({ assignments }) => {
   const [questions, setQuestions] = useState([]);
   const [selectedQids, setSelectedQids] = useState([]);
   const [step, setStep]           = useState(1);
+  const [showAddQuestion, setShowAddQuestion] = useState(false);
+  const [newQForm, setNewQForm] = useState({ question_text: '', question_type: 'mcq', difficulty: 'medium', max_marks: 1, option_a: '', option_b: '', option_c: '', option_d: '', correct_option: '', expected_answer: '' });
 
   const subjects = [...new Map(assignments.map(a=>[a.subject_id,a])).values()];
   const batches  = [...new Map(assignments.map(a=>[a.batch_id, a])).values()];
@@ -691,6 +1276,21 @@ const ExamsTab = ({ assignments }) => {
   };
 
   const toggleQ = id => setSelectedQids(p=>p.includes(id)?p.filter(x=>x!==id):[...p,id]);
+
+  const addNewQuestionToExam = async () => {
+    if (!newQForm.question_text || !form.subject_id) return toast.error('Fill required fields');
+    setSaving(true);
+    try {
+      const r = await api.post('/teaching/teacher/questions/', { ...newQForm, subject_id: form.subject_id });
+      const newQuestion = r.data.data;
+      setQuestions(p => [...p, newQuestion]);
+      setSelectedQids(p => [...p, newQuestion.question_id]);
+      setShowAddQuestion(false);
+      setNewQForm({ question_text: '', question_type: 'mcq', difficulty: 'medium', max_marks: 1, option_a: '', option_b: '', option_c: '', option_d: '', correct_option: '', expected_answer: '' });
+      toast.success('Question added and selected!');
+    } catch(e) { toast.error(getErr(e)); }
+    finally { setSaving(false); }
+  };
 
   const createExam = async () => {
     setSaving(true);
