@@ -102,58 +102,196 @@ const OverviewTab = ({ dash }) => {
 // ═══════════════════════════════════════════════════════════════════════════════
 // TAB: MY CENTER
 // ═══════════════════════════════════════════════════════════════════════════════
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// TAB: MY CENTER
+// ═══════════════════════════════════════════════════════════════════════════════
 const MyCenterTab = ({ dash }) => {
-  if (!dash) return <Loading/>;
-  if (dash.assignments.length===0) return (
-    <div className="bg-white rounded-2xl border border-dashed border-gray-200 py-16 text-center text-gray-400">
-      <FiAlertCircle className="w-10 h-10 mx-auto mb-2 opacity-30"/>
-      <p>No center assignments yet. Contact your coaching admin.</p>
-    </div>
-  );
+  if (!dash) return <Loading />;
 
-  // Group by course_title
-  const byCourse = {};
-  dash.assignments.forEach(a => {
-    if (!byCourse[a.course_title]) byCourse[a.course_title] = [];
-    byCourse[a.course_title].push(a);
-  });
+  const assignments = dash?.assignments || [];
+  const myCenters = dash?.my_centers || [];
 
-  return (
-    <div className="space-y-4">
-      <h2 className="text-xl font-bold text-gray-800">My Coaching Center</h2>
-      {dash.assignments[0]?.center_name && (
-        <div className="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-2xl p-5 text-white">
-          <p className="text-blue-200 text-xs font-semibold uppercase tracking-widest mb-1">Center</p>
-          <h3 className="text-xl font-bold">{dash.assignments[0].center_name}</h3>
+  // ──────────────────────────────────────────────────────────────────────────
+  // CASE 1: Has subject assignments → Show grouped by center + course
+  // ──────────────────────────────────────────────────────────────────────────
+  if (assignments.length > 0) {
+    // Group by center_name → course_title
+    const byCenter = {};
+    assignments.forEach(a => {
+      const center = a.center_name || 'Unassigned Center';
+      if (!byCenter[center]) byCenter[center] = {};
+      if (!byCenter[center][a.course_title]) byCenter[center][a.course_title] = [];
+      byCenter[center][a.course_title].push(a);
+    });
+
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center space-x-2">
+          <FiHome className="w-5 h-5 text-gray-600" />
+          <h2 className="text-xl font-bold text-gray-800">My Assigned Centers</h2>
+          <span className="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded-full">
+            {Object.keys(byCenter).length} center(s)
+          </span>
         </div>
-      )}
-      {Object.entries(byCourse).map(([courseTitle, assignments])=>(
-        <div key={courseTitle} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-          <div className="flex items-center space-x-3 mb-4">
-            <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center">
-              <FiBook className="w-5 h-5 text-blue-600"/>
-            </div>
-            <div>
-              <p className="font-bold text-gray-800">{courseTitle}</p>
-              <p className="text-xs text-gray-400">Course</p>
-            </div>
-          </div>
-          <div className="space-y-2">
-            {assignments.map(a=>(
-              <div key={a.assignment_id} className="flex items-center justify-between bg-gray-50 rounded-xl px-4 py-3">
-                <div>
-                  <p className="text-sm font-semibold text-gray-800">{a.subject_name}</p>
-                  <p className="text-xs text-gray-400">{a.subject_code} · {a.batch_name} · {a.batch_type}</p>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Badge text={a.batch_status} color={a.batch_status==='running'?'green':a.batch_status==='upcoming'?'blue':'gray'}/>
-                  <span className="text-xs text-gray-400">{a.enrolled_count} students</span>
-                </div>
+
+        {Object.entries(byCenter).map(([centerName, courseMap]) => (
+          <div key={centerName} className="space-y-4">
+            {/* Center Header */}
+            <div className="bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-700 rounded-2xl p-6 text-white shadow-lg">
+              <p className="text-blue-200 text-xs font-semibold uppercase tracking-widest mb-1">
+                🏫 Coaching Center
+              </p>
+              <h3 className="text-2xl font-bold">{centerName}</h3>
+              <div className="flex items-center space-x-4 mt-3 text-sm text-blue-100">
+                <span>📚 {Object.values(courseMap).flat().length} subjects</span>
+                <span>👥 {Object.values(courseMap).flat().reduce((sum, a) => sum + (a.enrolled_count || 0), 0)} students</span>
               </div>
-            ))}
+            </div>
+
+            {/* Courses in this center */}
+            <div className="space-y-4">
+              {Object.entries(courseMap).map(([courseTitle, assigns]) => (
+                <div key={courseTitle} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+                  <div className="flex items-center space-x-3 mb-4">
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center">
+                      <FiBook className="w-5 h-5 text-blue-600" />
+                    </div>
+                    <div>
+                      <p className="font-bold text-gray-800">{courseTitle}</p>
+                      <p className="text-xs text-gray-400">
+                        Course · {assigns.length} subject(s)
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Subjects/Batches */}
+                  <div className="space-y-2">
+                    {assigns.map(a => (
+                      <div
+                        key={a.assignment_id}
+                        className="flex items-center justify-between bg-gradient-to-r from-gray-50 to-blue-50 hover:from-gray-100 hover:to-blue-100 rounded-xl px-4 py-3.5 transition-colors border border-gray-100"
+                      >
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-2">
+                            <p className="text-sm font-semibold text-gray-800">
+                              {a.subject_name}
+                            </p>
+                            <span className="text-xs text-gray-500 font-mono bg-gray-100 px-2 py-0.5 rounded">
+                              {a.subject_code}
+                            </span>
+                          </div>
+                          <p className="text-xs text-gray-500 mt-1">
+                            Batch: <span className="font-medium text-gray-700">{a.batch_name}</span> (
+                            {a.batch_type})
+                          </p>
+                        </div>
+                        <div className="flex items-center space-x-3 ml-4">
+                          <div className="text-right">
+                            <p className="text-xs text-gray-500">Enrollment</p>
+                            <p className="font-semibold text-blue-600">{a.enrolled_count} students</p>
+                          </div>
+                          <Badge
+                            text={a.batch_status}
+                            color={
+                              a.batch_status === 'running'
+                                ? 'green'
+                                : a.batch_status === 'upcoming'
+                                ? 'blue'
+                                : 'gray'
+                            }
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // CASE 2: No assignments yet BUT has centers → Show centers with courses
+  // ──────────────────────────────────────────────────────────────────────────
+  if (myCenters.length > 0) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center space-x-2">
+          <FiHome className="w-5 h-5 text-gray-600" />
+          <h2 className="text-xl font-bold text-gray-800">My Coaching Centers</h2>
+          <span className="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded-full">
+            {myCenters.length} center(s)
+          </span>
+        </div>
+
+        {/* Information banner */}
+        <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 text-blue-800">
+          <div className="flex items-start space-x-3">
+            <FiAlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="font-semibold">No subject assignments yet</p>
+              <p className="text-sm mt-1">
+                You're registered in the centers below, but your coaching admin hasn't assigned you to any
+                subjects yet. Ask them to go to: <strong>Courses → Subjects → Assign Teacher</strong>
+              </p>
+            </div>
           </div>
         </div>
-      ))}
+
+        {/* Centers with courses */}
+        {myCenters.map(center => (
+          <div key={center.center_id} className="space-y-4">
+            {/* Center Header */}
+            <div className="bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-700 rounded-2xl p-6 text-white shadow-lg">
+              <p className="text-blue-200 text-xs font-semibold uppercase tracking-widest mb-1">
+                🏫 Coaching Center
+              </p>
+              <h3 className="text-2xl font-bold">{center.center_name}</h3>
+              <div className="flex items-center space-x-4 mt-3 text-sm text-blue-100">
+                <span>📚 {center.courses.length} course(s) offered</span>
+              </div>
+            </div>
+
+            {/* Courses */}
+            <div className="grid gap-3">
+              {center.courses.map(course => (
+                <div
+                  key={course.course_id}
+                  className="bg-white rounded-xl border border-gray-100 hover:border-blue-200 hover:shadow-md transition-all p-4"
+                >
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center flex-shrink-0">
+                      <FiBook className="w-5 h-5 text-blue-600" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-semibold text-gray-800">{course.course_title}</p>
+                      <p className="text-xs text-gray-400">Waiting for teacher assignment</p>
+                    </div>
+                    <FiChevronRight className="w-5 h-5 text-gray-400" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // CASE 3: No assignments AND no centers → Empty state
+  // ──────────────────────────────────────────────────────────────────────────
+  return (
+    <div className="bg-white rounded-2xl border border-dashed border-gray-200 py-16 text-center text-gray-400">
+      <FiAlertCircle className="w-10 h-10 mx-auto mb-2 opacity-30" />
+      <p className="font-semibold">Not registered in any coaching center yet</p>
+      <p className="text-sm mt-1">
+        Contact your coaching center admin to join their center as a teacher.
+      </p>
     </div>
   );
 };

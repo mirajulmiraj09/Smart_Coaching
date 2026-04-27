@@ -1,74 +1,68 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   FiHome, FiBook, FiUsers, FiGrid, FiPlus, FiTrash2,
-  FiSearch, FiRefreshCw, FiX, FiCheck, FiAlertTriangle,
-  FiChevronRight, FiLayers, FiUserPlus, FiAward, FiBarChart2,
-  FiEye, FiEdit, FiMail, FiPhone, FiCalendar, FiClock,
-  FiUserX, FiUserCheck, FiUser, FiBookOpen, FiActivity,
+  FiSearch, FiX, FiAlertTriangle, FiChevronRight, FiUserPlus,
+  FiPhone, FiMail, FiCalendar, FiClock, FiArrowLeft,
+  FiCheckCircle, FiSlash, FiAward, FiBarChart2, FiUser,
+  FiRefreshCw, FiTag, FiLayers,
 } from 'react-icons/fi';
 import api from '../../services/api';
 import Loading from '../../components/Loading';
 import toast from 'react-hot-toast';
-import { useAuthStore } from '../../stores/authStore';
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ─── Tiny Helpers ─────────────────────────────────────────────────────────────
 const Badge = ({ text, color = 'gray' }) => {
   const map = {
-    green:  'bg-green-100 text-green-800',
-    yellow: 'bg-yellow-100 text-yellow-800',
-    red:    'bg-red-100 text-red-800',
-    blue:   'bg-blue-100 text-blue-800',
-    purple: 'bg-purple-100 text-purple-800',
-    gray:   'bg-gray-100 text-gray-600',
-    orange: 'bg-orange-100 text-orange-800',
+    green:  'bg-emerald-100 text-emerald-700 border border-emerald-200',
+    yellow: 'bg-amber-100 text-amber-700 border border-amber-200',
+    red:    'bg-rose-100 text-rose-700 border border-rose-200',
+    blue:   'bg-blue-100 text-blue-700 border border-blue-200',
+    purple: 'bg-violet-100 text-violet-700 border border-violet-200',
+    gray:   'bg-gray-100 text-gray-500 border border-gray-200',
   };
   return (
-    <span className={`px-2 py-0.5 rounded-full text-xs font-semibold capitalize ${map[color] || map.gray}`}>
+    <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold capitalize ${map[color] || map.gray}`}>
       {text}
     </span>
   );
 };
 
-const statusColor = (s) => ({
-  approved: 'green', pending: 'yellow', rejected: 'red',
-  running: 'green', upcoming: 'blue', completed: 'gray',
-  active: 'green', dropped: 'red', morning: 'blue',
-  evening: 'orange', night: 'purple', day: 'gray',
-  regular: 'blue', crash: 'red', online: 'green',
-  pass: 'green', fail: 'red',
-}[s] || 'gray');
+const statusColor = s => ({ approved:'green', active:'green', running:'green', pending:'yellow', upcoming:'blue', completed:'gray', rejected:'red', dropped:'red' }[s] || 'gray');
 
-// ─── Modal ─────────────────────────────────────────────────────────────────
 const Modal = ({ open, title, onClose, children, wide }) => {
   if (!open) return null;
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className={`bg-white rounded-xl shadow-2xl w-full ${wide ? 'max-w-3xl' : 'max-w-lg'} max-h-[90vh] overflow-y-auto`}>
-        <div className="flex items-center justify-between p-5 border-b sticky top-0 bg-white z-10">
-          <h2 className="text-lg font-bold text-gray-800">{title}</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 p-1 rounded-lg hover:bg-gray-100"><FiX size={20} /></button>
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className={`bg-white rounded-2xl shadow-2xl w-full ${wide ? 'max-w-2xl' : 'max-w-md'} max-h-[92vh] overflow-y-auto`}>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+          <h2 className="text-base font-bold text-gray-800">{title}</h2>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400 transition"><FiX size={16}/></button>
         </div>
-        <div className="p-5">{children}</div>
+        <div className="px-6 py-5">{children}</div>
       </div>
     </div>
   );
 };
 
-// ─── Confirm ──────────────────────────────────────────────────────────────────
-const Confirm = ({ open, msg, onConfirm, onCancel, loading, dangerous = true }) => {
+const ConfirmDialog = ({ open, title, message, confirmLabel, confirmClass, onConfirm, onCancel, loading }) => {
   if (!open) return null;
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70] p-4">
-      <div className="bg-white rounded-xl shadow-2xl p-6 max-w-sm w-full">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
+      <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full">
         <div className="flex items-start space-x-3 mb-4">
-          <FiAlertTriangle className={`w-6 h-6 flex-shrink-0 mt-0.5 ${dangerous ? 'text-red-500' : 'text-yellow-500'}`} />
-          <p className="text-gray-700">{msg}</p>
+          <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+            <FiAlertTriangle className="text-red-500 w-5 h-5" />
+          </div>
+          <div>
+            <p className="font-bold text-gray-800">{title}</p>
+            <p className="text-sm text-gray-500 mt-1">{message}</p>
+          </div>
         </div>
         <div className="flex space-x-3">
-          <button onClick={onCancel} className="btn-secondary flex-1">Cancel</button>
-          <button onClick={onConfirm} disabled={loading}
-            className={`flex-1 px-4 py-2 ${dangerous ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'} text-white rounded-lg font-medium transition disabled:opacity-50`}>
-            {loading ? 'Processing...' : 'Confirm'}
+          <button onClick={onCancel} className="flex-1 px-4 py-2 border border-gray-200 rounded-xl text-gray-600 text-sm font-medium hover:bg-gray-50 transition">Cancel</button>
+          <button onClick={onConfirm} disabled={loading} className={`flex-1 px-4 py-2 rounded-xl text-white text-sm font-medium transition disabled:opacity-50 ${confirmClass || 'bg-red-500 hover:bg-red-600'}`}>
+            {loading ? 'Processing...' : confirmLabel || 'Confirm'}
           </button>
         </div>
       </div>
@@ -76,92 +70,631 @@ const Confirm = ({ open, msg, onConfirm, onCancel, loading, dangerous = true }) 
   );
 };
 
-// ─── Field ────────────────────────────────────────────────────────────────────
 const Field = ({ label, required, children }) => (
-  <div>
-    <label className="block text-sm font-medium text-gray-700 mb-1">
-      {label}{required && <span className="text-red-500 ml-1">*</span>}
+  <div className="space-y-1">
+    <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+      {label}{required && <span className="text-red-400 ml-1">*</span>}
     </label>
     {children}
   </div>
 );
 
-// ─── Stat Card ────────────────────────────────────────────────────────────────
-const StatCard = ({ label, value, icon: Icon, color }) => {
-  const colors = {
-    blue:   'border-blue-500 text-blue-600',
-    purple: 'border-purple-500 text-purple-600',
-    green:  'border-green-500 text-green-600',
-    orange: 'border-orange-500 text-orange-600',
-  };
+const inputCls = 'w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition bg-gray-50 hover:bg-white';
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// OVERVIEW TAB
+// ═══════════════════════════════════════════════════════════════════════════════
+const OverviewTab = ({ center }) => {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const cid = center?.coaching_center_id;
+
+  useEffect(() => {
+    if (!cid) return;
+    Promise.all([
+      api.get(`/centers/${cid}/members/`),
+      api.get(`/teaching/centers/${cid}/courses/`),
+      api.get(`/teaching/centers/${cid}/assignments/`),
+    ]).then(([m, c, a]) => {
+      setData({
+        members: m.data.data,
+        courses: c.data.data?.results || [],
+        assignments: a.data.data?.results || [],
+      });
+    }).catch(() => {}).finally(() => setLoading(false));
+  }, [cid]);
+
+  if (!center) return <div className="rounded-2xl bg-amber-50 border border-amber-200 p-6 text-amber-700">⚠ No approved coaching center found.</div>;
+  if (loading) return <Loading />;
+
+  const stats = [
+    { label: 'Courses',     value: data.courses.length,              icon: FiBook,     color: 'blue' },
+    { label: 'Teachers',    value: data.members?.total_teachers || 0, icon: FiUsers,    color: 'purple' },
+    { label: 'Students',    value: data.members?.total_students || 0, icon: FiUsers,    color: 'green' },
+    { label: 'Assignments', value: data.assignments.length,          icon: FiLayers,   color: 'orange' },
+  ];
+
   return (
-    <div className={`card border-l-4 ${colors[color] || colors.blue}`}>
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-sm text-gray-500">{label}</p>
-          <p className="text-3xl font-bold text-gray-800 mt-1">{value}</p>
+    <div className="space-y-6">
+      {/* Center card */}
+      <div className="rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-700 p-6 text-white shadow-lg">
+        <p className="text-blue-200 text-xs font-semibold uppercase tracking-widest mb-1">Your Center</p>
+        <h2 className="text-2xl font-bold">{center.center_name}</h2>
+        <div className="flex flex-wrap gap-4 mt-3 text-blue-100 text-sm">
+          {center.location && <span className="flex items-center gap-1">📍 {center.location}</span>}
+          {center.contact_number && <span className="flex items-center gap-1"><FiPhone className="w-3.5 h-3.5"/>{center.contact_number}</span>}
+          {center.email && <span className="flex items-center gap-1"><FiMail className="w-3.5 h-3.5"/>{center.email}</span>}
         </div>
-        <Icon className={`w-8 h-8 opacity-20 ${colors[color]?.split(' ')[1]}`} />
       </div>
+
+      {/* Stats grid */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {stats.map(({ label, value, icon: Icon, color }) => (
+          <div key={label} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 hover:shadow-md transition">
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-3 ${
+              color === 'blue' ? 'bg-blue-100' : color === 'purple' ? 'bg-violet-100' : color === 'green' ? 'bg-emerald-100' : 'bg-orange-100'
+            }`}>
+              <Icon className={`w-5 h-5 ${color === 'blue' ? 'text-blue-600' : color === 'purple' ? 'text-violet-600' : color === 'green' ? 'text-emerald-600' : 'text-orange-600'}`} />
+            </div>
+            <p className="text-3xl font-bold text-gray-800">{value}</p>
+            <p className="text-xs text-gray-400 mt-0.5">{label}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Teacher assignments overview */}
+      {data.assignments.length > 0 && (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+          <h3 className="font-bold text-gray-800 mb-4">Teacher Assignments</h3>
+          <div className="space-y-2">
+            {data.assignments.slice(0, 6).map(a => (
+              <div key={a.assignment_id} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
+                <div className="flex items-center space-x-3">
+                  <div className="w-8 h-8 rounded-full bg-violet-100 flex items-center justify-center">
+                    <FiUser className="w-4 h-4 text-violet-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-800">{a.teacher.name}</p>
+                    <p className="text-xs text-gray-400">{a.subject.name} · {a.batch.name}</p>
+                  </div>
+                </div>
+                <Badge text={a.course.title} color="blue" />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// TAB: Overview
+// COURSES TAB
 // ═══════════════════════════════════════════════════════════════════════════════
-const OverviewTab = ({ center }) => {
-  const [members, setMembers] = useState({ teachers: [], students: [], total_teachers: 0, total_students: 0 });
+const CoursesTab = ({ center }) => {
   const [courses, setCourses] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showAdd, setShowAdd] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [selected, setSelected] = useState(null);
+  const [form, setForm] = useState({ course_title: '', description: '', fee: '', duration: '' });
+  const cid = center?.coaching_center_id;
+
+  const fetch = useCallback(async () => {
+    setLoading(true);
+    try { const r = await api.get(`/teaching/centers/${cid}/courses/`); setCourses(r.data.data?.results || []); }
+    catch { toast.error('Failed to load courses'); } finally { setLoading(false); }
+  }, [cid]);
+
+  useEffect(() => { if (cid) fetch(); }, [fetch, cid]);
+
+  const add = async () => {
+    if (!form.course_title || !form.fee || !form.duration) return toast.error('Fill required fields');
+    setSaving(true);
+    try { await api.post(`/teaching/centers/${cid}/courses/`, form); toast.success('Course created!'); setShowAdd(false); setForm({ course_title:'', description:'', fee:'', duration:'' }); fetch(); }
+    catch(e) { toast.error(e.response?.data?.detail || 'Failed'); } finally { setSaving(false); }
+  };
+
+  if (loading) return <Loading />;
+  if (selected) return <CourseDetailView course={selected} center={center} onBack={() => { setSelected(null); fetch(); }} />;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-bold text-gray-800">Courses <span className="text-gray-400 font-normal text-base">({courses.length})</span></h2>
+        <button onClick={() => setShowAdd(true)} className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl text-sm font-medium transition shadow-sm">
+          <FiPlus className="w-4 h-4"/><span>Add Course</span>
+        </button>
+      </div>
+
+      {courses.length === 0 ? (
+        <div className="bg-white rounded-2xl border border-dashed border-gray-200 py-16 text-center">
+          <FiBook className="w-10 h-10 text-gray-200 mx-auto mb-3"/>
+          <p className="text-gray-400">No courses yet. Add your first course.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {courses.map(c => (
+            <div key={c.course_id} onClick={() => setSelected(c)} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 cursor-pointer hover:shadow-md hover:border-blue-200 transition group">
+              <div className="flex justify-between items-start mb-2">
+                <h3 className="font-bold text-gray-800 group-hover:text-blue-600 transition">{c.course_title}</h3>
+                <FiChevronRight className="text-gray-300 group-hover:text-blue-500 transition flex-shrink-0"/>
+              </div>
+              {c.description && <p className="text-sm text-gray-400 line-clamp-2 mb-3">{c.description}</p>}
+              <div className="flex items-center space-x-3 text-sm">
+                <span className="flex items-center space-x-1 text-gray-500"><FiClock className="w-3.5 h-3.5"/><span>{c.duration} weeks</span></span>
+                <span className="font-bold text-blue-600">৳{c.fee}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <Modal open={showAdd} title="Add New Course" onClose={() => setShowAdd(false)}>
+        <div className="space-y-4">
+          <Field label="Course Title" required><input className={inputCls} value={form.course_title} onChange={e=>setForm(p=>({...p,course_title:e.target.value}))} placeholder="e.g. HSC Science 2025"/></Field>
+          <Field label="Description"><textarea className={inputCls+' resize-none'} rows={3} value={form.description} onChange={e=>setForm(p=>({...p,description:e.target.value}))} placeholder="Short description..."/></Field>
+          <div className="grid grid-cols-2 gap-4">
+            <Field label="Fee (৳)" required><input className={inputCls} type="number" value={form.fee} onChange={e=>setForm(p=>({...p,fee:e.target.value}))} placeholder="5000"/></Field>
+            <Field label="Duration (weeks)" required><input className={inputCls} type="number" value={form.duration} onChange={e=>setForm(p=>({...p,duration:e.target.value}))} placeholder="12"/></Field>
+          </div>
+          <div className="flex space-x-3 pt-2">
+            <button onClick={()=>setShowAdd(false)} className="flex-1 px-4 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-600 hover:bg-gray-50 transition">Cancel</button>
+            <button onClick={add} disabled={saving} className="flex-1 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-medium transition disabled:opacity-50">{saving?'Creating...':'Create Course'}</button>
+          </div>
+        </div>
+      </Modal>
+    </div>
+  );
+};
+
+// ── Course Detail (Batches + Subjects) ────────────────────────────────────────
+const CourseDetailView = ({ course, center, onBack }) => {
+  const [tab, setTab] = useState('batches');
+  const [batches, setBatches] = useState([]);
+  const [subjects, setSubjects] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showBatch, setShowBatch] = useState(false);
+  const [showSubject, setShowSubject] = useState(false);
+  const [showAssign, setShowAssign] = useState(null); // subject obj
+  const [saving, setSaving] = useState(false);
+  const [selectedBatch, setSelectedBatch] = useState(null);
+  const [teachers, setTeachers] = useState([]);
+  const [batchForm, setBatchForm] = useState({ batch_name:'', batch_code:'', batch_type:'regular', class_shift:'morning', start_date:'', end_date:'', max_students:30 });
+  const [subjectForm, setSubjectForm] = useState({ subject_name:'', subject_code:'' });
+  const [assignTeacher, setAssignTeacher] = useState('');
+
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [b, s, t] = await Promise.all([
+        api.get(`/teaching/courses/${course.course_id}/batches/`),
+        api.get(`/teaching/courses/${course.course_id}/subjects/with-teachers/`),
+        api.get(`/centers/${center.coaching_center_id}/members/?role=teacher`),
+      ]);
+      setBatches(b.data.data?.results || []);
+      setSubjects(s.data.data?.results || []);
+      setTeachers(t.data.data?.teachers || []);
+    } catch { toast.error('Failed to load'); } finally { setLoading(false); }
+  }, [course.course_id, center.coaching_center_id]);
+
+  useEffect(() => { loadData(); }, [loadData]);
+
+  const addBatch = async () => {
+    setSaving(true);
+    try { await api.post(`/teaching/courses/${course.course_id}/batches/`, batchForm); toast.success('Batch created!'); setShowBatch(false); loadData(); }
+    catch(e) { toast.error(Object.values(e.response?.data||{})[0]?.[0]||'Failed'); } finally { setSaving(false); }
+  };
+
+  const addSubject = async () => {
+    if (!subjectForm.subject_name || !subjectForm.subject_code) return toast.error('Fill required fields');
+    setSaving(true);
+    try { await api.post(`/teaching/courses/${course.course_id}/subjects/`, subjectForm); toast.success('Subject created!'); setShowSubject(false); setSubjectForm({ subject_name:'', subject_code:'' }); loadData(); }
+    catch(e) { toast.error(Object.values(e.response?.data||{})[0]?.[0]||'Failed'); } finally { setSaving(false); }
+  };
+
+  const doAssignTeacher = async (subject, batchId) => {
+    if (!assignTeacher) return toast.error('Please select a teacher');
+    if (!batchId)       return toast.error('Please select a batch');
+
+    const payload = {
+      coaching_center: center.coaching_center_id,
+      course:          course.course_id,
+      batch:           parseInt(batchId),
+      subject:         subject.subject_id,
+      teacher:         parseInt(assignTeacher),
+    };
+
+    setSaving(true);
+    try {
+      await api.post('/teaching/assignments/teachers/', payload);
+      toast.success(`Teacher assigned to ${subject.subject_name}!`);
+      setShowAssign(null);
+      setAssignTeacher('');
+      setAssignBatch('');
+      loadData();
+    } catch(e) {
+      const errData = e.response?.data;
+      const msg = errData?.detail
+        || errData?.message
+        || Object.values(errData || {}).flat().filter(v => typeof v === 'string').join(' ')
+        || 'Assignment failed';
+      toast.error(msg);
+      console.error('Assign error:', errData);
+    } finally { setSaving(false); }
+  };
+
+  const [assignBatch, setAssignBatch] = useState('');
+
+  if (selectedBatch) return <BatchDetailView batch={selectedBatch} center={center} onBack={() => setSelectedBatch(null)} />;
+
+  return (
+    <div className="space-y-4">
+      {/* Back + header */}
+      <div className="flex items-center space-x-3">
+        <button onClick={onBack} className="w-9 h-9 flex items-center justify-center rounded-xl border border-gray-200 hover:bg-gray-50 transition"><FiArrowLeft className="w-4 h-4"/></button>
+        <div>
+          <h2 className="text-xl font-bold text-gray-800">{course.course_title}</h2>
+          <p className="text-sm text-gray-400">{course.duration} weeks · ৳{course.fee}</p>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex space-x-1 bg-gray-100 rounded-xl p-1 w-fit">
+        {[['batches','Batches'],['subjects','Subjects & Teachers']].map(([k,l]) => (
+          <button key={k} onClick={() => setTab(k)} className={`px-5 py-2 rounded-lg text-sm font-medium transition ${tab===k ? 'bg-white shadow-sm text-gray-800' : 'text-gray-500 hover:text-gray-700'}`}>{l}</button>
+        ))}
+      </div>
+
+      {loading ? <Loading /> : tab === 'batches' ? (
+        <div className="space-y-3">
+          <div className="flex justify-end">
+            <button onClick={() => setShowBatch(true)} className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-sm font-medium transition">
+              <FiPlus className="w-4 h-4"/><span>Add Batch</span>
+            </button>
+          </div>
+          {batches.length === 0 ? <div className="text-center py-12 text-gray-400 bg-white rounded-2xl border border-dashed border-gray-200">No batches yet</div> :
+            batches.map(b => (
+              <div key={b.batch_id} onClick={() => setSelectedBatch(b)} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 cursor-pointer hover:shadow-md hover:border-blue-200 transition group">
+                <div className="flex justify-between items-start mb-2">
+                  <div>
+                    <p className="font-bold text-gray-800 group-hover:text-blue-600 transition">{b.batch_name}</p>
+                    <p className="text-xs text-gray-400 mt-0.5">{b.batch_code} · {b.class_shift} shift · {b.batch_type}</p>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Badge text={b.status} color={statusColor(b.status)}/>
+                    <FiChevronRight className="text-gray-300 group-hover:text-blue-500 transition"/>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-4 text-xs text-gray-400 mt-2">
+                  <span><FiCalendar className="inline w-3 h-3 mr-1"/>{b.start_date} → {b.end_date}</span>
+                  <span className="font-semibold text-gray-600">{b.enrolled_count}/{b.max_students} students</span>
+                  {b.is_full && <Badge text="Full" color="red"/>}
+                </div>
+              </div>
+            ))
+          }
+        </div>
+      ) : (
+        <div className="space-y-3">
+          <div className="flex justify-end">
+            <button onClick={() => setShowSubject(true)} className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-sm font-medium transition">
+              <FiPlus className="w-4 h-4"/><span>Add Subject</span>
+            </button>
+          </div>
+          {subjects.length === 0 ? <div className="text-center py-12 text-gray-400 bg-white rounded-2xl border border-dashed border-gray-200">No subjects yet</div> :
+            subjects.map(s => (
+              <div key={s.subject_id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+                <div className="flex justify-between items-start mb-3">
+                  <div>
+                    <p className="font-bold text-gray-800">{s.subject_name}</p>
+                    <p className="text-xs text-gray-400">{s.subject_code}</p>
+                  </div>
+                  <button onClick={() => { setShowAssign(s); setAssignTeacher(''); setAssignBatch(''); }}
+                    className="flex items-center space-x-1 text-xs bg-violet-100 hover:bg-violet-200 text-violet-700 px-3 py-1.5 rounded-lg font-medium transition">
+                    <FiUserPlus className="w-3.5 h-3.5"/><span>Assign Teacher</span>
+                  </button>
+                </div>
+                {s.assignments.length === 0 ? (
+                  <p className="text-xs text-gray-400 italic">No teacher assigned yet</p>
+                ) : (
+                  <div className="space-y-1.5">
+                    {s.assignments.map(a => (
+                      <div key={a.assignment_id} className="flex items-center justify-between bg-violet-50 rounded-xl px-3 py-2 text-xs">
+                        <span className="font-medium text-violet-800">{a.teacher_name}</span>
+                        <span className="text-violet-500">{a.batch_name}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))
+          }
+        </div>
+      )}
+
+      {/* Add Batch Modal */}
+      <Modal open={showBatch} title="Add Batch" onClose={() => setShowBatch(false)} wide>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="col-span-2"><Field label="Batch Name" required><input className={inputCls} value={batchForm.batch_name} onChange={e=>setBatchForm(p=>({...p,batch_name:e.target.value}))} placeholder="e.g. HSC Batch A"/></Field></div>
+          <Field label="Batch Code" required><input className={inputCls} value={batchForm.batch_code} onChange={e=>setBatchForm(p=>({...p,batch_code:e.target.value}))} placeholder="BATCH-2025-A"/></Field>
+          <Field label="Max Students"><input className={inputCls} type="number" value={batchForm.max_students} onChange={e=>setBatchForm(p=>({...p,max_students:e.target.value}))}/></Field>
+          <Field label="Type">
+            <select className={inputCls} value={batchForm.batch_type} onChange={e=>setBatchForm(p=>({...p,batch_type:e.target.value}))}>
+              <option value="regular">Regular</option><option value="crash">Crash</option><option value="online">Online</option>
+            </select>
+          </Field>
+          <Field label="Shift">
+            <select className={inputCls} value={batchForm.class_shift} onChange={e=>setBatchForm(p=>({...p,class_shift:e.target.value}))}>
+              <option value="morning">Morning</option><option value="day">Day</option><option value="evening">Evening</option><option value="night">Night</option>
+            </select>
+          </Field>
+          <Field label="Start Date" required><input className={inputCls} type="date" value={batchForm.start_date} onChange={e=>setBatchForm(p=>({...p,start_date:e.target.value}))}/></Field>
+          <Field label="End Date" required><input className={inputCls} type="date" value={batchForm.end_date} onChange={e=>setBatchForm(p=>({...p,end_date:e.target.value}))}/></Field>
+        </div>
+        <div className="flex space-x-3 mt-5">
+          <button onClick={()=>setShowBatch(false)} className="flex-1 px-4 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-600 hover:bg-gray-50 transition">Cancel</button>
+          <button onClick={addBatch} disabled={saving} className="flex-1 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-medium transition disabled:opacity-50">{saving?'Creating...':'Create Batch'}</button>
+        </div>
+      </Modal>
+
+      {/* Add Subject Modal */}
+      <Modal open={showSubject} title="Add Subject" onClose={() => setShowSubject(false)}>
+        <div className="space-y-4">
+          <Field label="Subject Name" required><input className={inputCls} value={subjectForm.subject_name} onChange={e=>setSubjectForm(p=>({...p,subject_name:e.target.value}))} placeholder="e.g. Physics"/></Field>
+          <Field label="Subject Code" required><input className={inputCls} value={subjectForm.subject_code} onChange={e=>setSubjectForm(p=>({...p,subject_code:e.target.value}))} placeholder="e.g. PHY-101"/></Field>
+          <div className="flex space-x-3">
+            <button onClick={()=>setShowSubject(false)} className="flex-1 px-4 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-600 hover:bg-gray-50 transition">Cancel</button>
+            <button onClick={addSubject} disabled={saving} className="flex-1 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-medium transition disabled:opacity-50">{saving?'Creating...':'Create'}</button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Assign Teacher Modal */}
+      <Modal open={!!showAssign} title={`Assign Teacher — ${showAssign?.subject_name}`} onClose={() => setShowAssign(null)}>
+        <div className="space-y-4">
+          <Field label="Select Batch" required>
+            <select className={inputCls} value={assignBatch} onChange={e => setAssignBatch(e.target.value)}>
+              <option value="">Choose batch...</option>
+              {batches.map(b => <option key={b.batch_id} value={b.batch_id}>{b.batch_name}</option>)}
+            </select>
+          </Field>
+          <Field label="Select Teacher" required>
+            <select className={inputCls} value={assignTeacher} onChange={e => setAssignTeacher(e.target.value)}>
+              <option value="">Choose teacher...</option>
+              {teachers.map(t => <option key={t.user_id} value={t.user_id}>{t.name}</option>)}
+            </select>
+          </Field>
+          <div className="flex space-x-3">
+            <button onClick={() => setShowAssign(null)} className="flex-1 px-4 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-600 hover:bg-gray-50 transition">Cancel</button>
+            <button onClick={() => doAssignTeacher(showAssign, assignBatch)} disabled={saving} className="flex-1 px-4 py-2.5 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-sm font-medium transition disabled:opacity-50">{saving?'Assigning...':'Assign'}</button>
+          </div>
+        </div>
+      </Modal>
+    </div>
+  );
+};
+
+// ── Batch Detail View (Students with stats) ───────────────────────────────────
+const BatchDetailView = ({ batch, center, onBack }) => {
+  const [students, setStudents] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selected, setSelected] = useState(null);
+  const [enrollEmail, setEnrollEmail] = useState('');
+  const [enrolling, setEnrolling] = useState(false);
+  const [banTarget, setBanTarget] = useState(null);
+  const [banning, setBanning] = useState(false);
+
+  const loadStudents = useCallback(async () => {
+    setLoading(true);
+    try {
+      const r = await api.get(`/academics/batches/${batch.batch_id}/students/detail/`);
+      setStudents(r.data.data?.students || []);
+    } catch { toast.error('Failed'); } finally { setLoading(false); }
+  }, [batch.batch_id]);
+
+  useEffect(() => { loadStudents(); }, [loadStudents]);
+
+  const enrollStudent = async () => {
+    if (!enrollEmail.trim()) return toast.error('Enter student email');
+    setEnrolling(true);
+    try {
+      // Find student by looking up members
+      const res = await api.get(`/centers/${center.coaching_center_id}/members/?role=student`);
+      const students_list = res.data.data?.students || [];
+      const found = students_list.find(s => s.email === enrollEmail.trim());
+      if (!found) return toast.error('Student not found in center. Add them first.');
+      await api.post(`/academics/batches/${batch.batch_id}/enroll/`, { student: found.user_id });
+      toast.success('Student enrolled!');
+      setEnrollEmail('');
+      loadStudents();
+    } catch(e) { toast.error(e.response?.data?.non_field_errors?.[0] || e.response?.data?.detail || 'Failed'); }
+    finally { setEnrolling(false); }
+  };
+
+  const doBan = async () => {
+    setBanning(true);
+    try {
+      const isBanned = banTarget.enrollment_status === 'dropped';
+      await api.post(`/academics/enrollments/${banTarget.enrollment_id}/${isBanned ? 'unban' : 'ban'}/`);
+      toast.success(isBanned ? 'Student unbanned.' : 'Student banned.');
+      setBanTarget(null);
+      loadStudents();
+    } catch { toast.error('Failed'); } finally { setBanning(false); }
+  };
+
+  if (selected) return <StudentProfileView student={selected} batch={batch} onBack={() => setSelected(null)} />;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center space-x-3">
+        <button onClick={onBack} className="w-9 h-9 flex items-center justify-center rounded-xl border border-gray-200 hover:bg-gray-50 transition"><FiArrowLeft className="w-4 h-4"/></button>
+        <div>
+          <h2 className="text-xl font-bold text-gray-800">{batch.batch_name}</h2>
+          <p className="text-sm text-gray-400">{batch.batch_code} · {batch.class_shift} · <Badge text={batch.status} color={statusColor(batch.status)}/></p>
+        </div>
+      </div>
+
+      {/* Enroll student */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Enroll Student</p>
+        <div className="flex space-x-2">
+          <input className={inputCls+' flex-1'} placeholder="Student email address" value={enrollEmail} onChange={e=>setEnrollEmail(e.target.value)} onKeyDown={e=>e.key==='Enter'&&enrollStudent()}/>
+          <button onClick={enrollStudent} disabled={enrolling} className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-medium transition disabled:opacity-50 flex-shrink-0">
+            {enrolling ? '...' : 'Enroll'}
+          </button>
+        </div>
+      </div>
+
+      {/* Students list */}
+      {loading ? <Loading /> : students.length === 0 ? (
+        <div className="bg-white rounded-2xl border border-dashed border-gray-200 py-14 text-center text-gray-400"><FiUsers className="w-10 h-10 mx-auto mb-2 opacity-30"/><p>No students enrolled yet</p></div>
+      ) : (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 border-b border-gray-100">
+              <tr>
+                {['Student','Contact','Status','Exams Attended','Actions'].map(h => (
+                  <th key={h} className={`px-5 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wide ${h==='Actions'?'text-right':'text-left'}`}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {students.map(s => (
+                <tr key={s.enrollment_id} className={`hover:bg-gray-50 transition ${s.enrollment_status==='dropped'?'opacity-60':''}`}>
+                  <td className="px-5 py-4">
+                    <p className="font-semibold text-gray-800">{s.student.name}</p>
+                    <p className="text-xs text-gray-400">{s.student.email}</p>
+                  </td>
+                  <td className="px-5 py-4 text-gray-400 text-xs">{s.student.phone || '—'}</td>
+                  <td className="px-5 py-4"><Badge text={s.enrollment_status} color={statusColor(s.enrollment_status)}/></td>
+                  <td className="px-5 py-4">
+                    <div className="flex items-center space-x-2">
+                      <div className="flex-1 bg-gray-100 rounded-full h-1.5 w-20">
+                        <div className="bg-blue-500 h-1.5 rounded-full" style={{width:`${s.stats.attendance_pct}%`}}/>
+                      </div>
+                      <span className="text-xs text-gray-500">{s.stats.exams_attended}/{s.stats.total_exams}</span>
+                    </div>
+                  </td>
+                  <td className="px-5 py-4">
+                    <div className="flex items-center justify-end space-x-1">
+                      <button onClick={() => setSelected(s)} title="View profile" className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-blue-50 text-gray-400 hover:text-blue-600 transition"><FiEye className="w-4 h-4"/></button>
+                      <button
+                        onClick={() => setBanTarget(s)}
+                        title={s.enrollment_status==='dropped'?'Unban':'Ban'}
+                        className={`w-8 h-8 flex items-center justify-center rounded-lg transition ${s.enrollment_status==='dropped'?'hover:bg-green-50 text-gray-400 hover:text-green-600':'hover:bg-red-50 text-gray-400 hover:text-red-600'}`}>
+                        {s.enrollment_status==='dropped'?<FiCheckCircle className="w-4 h-4"/>:<FiSlash className="w-4 h-4"/>}
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div className="px-5 py-3 bg-gray-50 border-t border-gray-100 text-xs text-gray-400">
+            {students.filter(s=>s.enrollment_status==='active').length} active · {students.filter(s=>s.enrollment_status==='dropped').length} banned
+          </div>
+        </div>
+      )}
+
+      <ConfirmDialog
+        open={!!banTarget}
+        title={banTarget?.enrollment_status==='dropped' ? 'Unban Student' : 'Ban Student'}
+        message={banTarget?.enrollment_status==='dropped'
+          ? `Re-activate ${banTarget?.student?.name} in this batch?`
+          : `Ban ${banTarget?.student?.name} from this batch? They will lose access.`}
+        confirmLabel={banTarget?.enrollment_status==='dropped' ? 'Unban' : 'Ban'}
+        confirmClass={banTarget?.enrollment_status==='dropped' ? 'bg-green-500 hover:bg-green-600' : 'bg-red-500 hover:bg-red-600'}
+        onConfirm={doBan}
+        onCancel={() => setBanTarget(null)}
+        loading={banning}
+      />
+    </div>
+  );
+};
+
+// ── Student Profile View ───────────────────────────────────────────────────────
+const FiEye = ({ className }) => <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>;
+
+const StudentProfileView = ({ student: enrollment, batch, onBack }) => {
+  const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!center) return;
-    const id = center.coaching_center_id;
-    Promise.all([
-      api.get(`/centers/${id}/members/`),
-      api.get(`/teaching/centers/${id}/courses/`),
-    ]).then(([m, c]) => {
-      setMembers(m.data.data || {});
-      setCourses(c.data.data?.results || []);
-    }).catch(() => {}).finally(() => setLoading(false));
-  }, [center]);
+    api.get(`/academics/students/${enrollment.student.user_id}/batch/${batch.batch_id}/profile/`)
+      .then(r => setProfile(r.data.data))
+      .catch(() => toast.error('Failed to load profile'))
+      .finally(() => setLoading(false));
+  }, [enrollment.student.user_id, batch.batch_id]);
 
-  if (!center) return <div className="card text-center py-12 text-gray-400">No approved center found.</div>;
   if (loading) return <Loading />;
 
+  const s = profile?.student || enrollment.student;
+  const stats = profile?.stats || enrollment.stats;
+  const results = profile?.exam_results || [];
+
   return (
-    <div className="space-y-6">
-      <div className="card bg-gradient-to-r from-blue-600 to-blue-700 text-white">
-        <h2 className="text-2xl font-bold">{center.center_name}</h2>
-        <p className="text-blue-100 mt-1">{center.location}</p>
-        <div className="flex flex-wrap gap-4 mt-3 text-sm text-blue-100">
-          {center.contact_number && <span className="flex items-center gap-1"><FiPhone className="w-4 h-4" />{center.contact_number}</span>}
-          {center.email && <span className="flex items-center gap-1"><FiMail className="w-4 h-4" />{center.email}</span>}
+    <div className="space-y-4">
+      <div className="flex items-center space-x-3">
+        <button onClick={onBack} className="w-9 h-9 flex items-center justify-center rounded-xl border border-gray-200 hover:bg-gray-50 transition"><FiArrowLeft className="w-4 h-4"/></button>
+        <h2 className="text-xl font-bold text-gray-800">Student Profile</h2>
+      </div>
+
+      {/* Profile card */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+        <div className="flex items-start space-x-4">
+          <div className="w-14 h-14 rounded-2xl bg-blue-100 flex items-center justify-center flex-shrink-0">
+            <FiUser className="w-7 h-7 text-blue-600"/>
+          </div>
+          <div className="flex-1">
+            <h3 className="text-xl font-bold text-gray-800">{s.name}</h3>
+            <p className="text-sm text-gray-400 mt-0.5">{s.email}</p>
+            {s.phone && <p className="text-sm text-gray-400">{s.phone}</p>}
+          </div>
+          <Badge text={enrollment.enrollment_status} color={statusColor(enrollment.enrollment_status)}/>
         </div>
-        <div className="mt-3"><Badge text={center.access_type} color="green" /></div>
+
+        {/* Stats */}
+        <div className="grid grid-cols-3 gap-4 mt-6 pt-5 border-t border-gray-100">
+          <div className="text-center">
+            <p className="text-2xl font-bold text-blue-600">{stats.exams_attended}</p>
+            <p className="text-xs text-gray-400 mt-0.5">Exams Attended</p>
+          </div>
+          <div className="text-center">
+            <p className="text-2xl font-bold text-gray-800">{stats.total_exams}</p>
+            <p className="text-xs text-gray-400 mt-0.5">Total Exams</p>
+          </div>
+          <div className="text-center">
+            <p className={`text-2xl font-bold ${stats.attendance_pct >= 75 ? 'text-emerald-600' : stats.attendance_pct >= 50 ? 'text-amber-500' : 'text-rose-500'}`}>{stats.attendance_pct}%</p>
+            <p className="text-xs text-gray-400 mt-0.5">Attendance</p>
+          </div>
+        </div>
+
+        {/* Progress bar */}
+        <div className="mt-4">
+          <div className="bg-gray-100 rounded-full h-2">
+            <div className={`h-2 rounded-full transition-all ${stats.attendance_pct >= 75 ? 'bg-emerald-500' : stats.attendance_pct >= 50 ? 'bg-amber-400' : 'bg-rose-400'}`} style={{width:`${stats.attendance_pct}%`}}/>
+          </div>
+        </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatCard label="Courses"  value={courses.length}                 icon={FiBook}     color="blue" />
-        <StatCard label="Teachers" value={members.total_teachers || 0}    icon={FiUsers}    color="purple" />
-        <StatCard label="Students" value={members.total_students || 0}    icon={FiUsers}    color="green" />
-        <StatCard label="Batches"  value={courses.reduce((a, _) => a, 0)} icon={FiLayers}   color="orange" />
-      </div>
-
-      <div className="card">
-        <h3 className="font-bold text-gray-800 mb-4">Active Courses</h3>
-        {courses.length === 0 ? (
-          <p className="text-gray-400 text-sm">No courses yet.</p>
+      {/* Exam results */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+        <h3 className="font-bold text-gray-800 mb-4">Exam Results</h3>
+        {results.length === 0 ? (
+          <p className="text-gray-400 text-sm text-center py-6">No exam records yet</p>
         ) : (
           <div className="space-y-2">
-            {courses.slice(0, 6).map(c => (
-              <div key={c.course_id} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
+            {results.map((r, i) => (
+              <div key={r.result_id || i} className="flex items-center justify-between py-2.5 border-b border-gray-50 last:border-0">
                 <div>
-                  <p className="font-medium text-gray-800">{c.course_title}</p>
-                  <p className="text-xs text-gray-400">{c.duration} weeks · ৳{c.fee}</p>
+                  <p className="text-sm font-medium text-gray-800">{r.exam_title}</p>
+                  <p className="text-xs text-gray-400">{r.subject}</p>
                 </div>
-                <FiChevronRight className="text-gray-300" />
+                <div className="text-right">
+                  {r.score !== null && <p className="font-bold text-gray-800">{r.score}</p>}
+                  {r.result_status && <Badge text={r.result_status} color={r.result_status==='pass'?'green':'red'}/>}
+                </div>
               </div>
             ))}
           </div>
@@ -172,962 +705,76 @@ const OverviewTab = ({ center }) => {
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// TAB: Courses → Batches → Students (drill-down)
-// ═══════════════════════════════════════════════════════════════════════════════
-const CoursesTab = ({ center }) => {
-  const [courses, setCourses] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [showAdd, setShowAdd] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({ course_title: '', description: '', fee: '', duration: '' });
-  const [selected, setSelected] = useState(null);
-  const cid = center?.coaching_center_id;
-
-  const fetchCourses = useCallback(async () => {
-    if (!cid) return;
-    setLoading(true);
-    try {
-      const res = await api.get(`/teaching/centers/${cid}/courses/`);
-      setCourses(res.data.data?.results || []);
-    } catch { toast.error('Failed to load courses'); }
-    finally { setLoading(false); }
-  }, [cid]);
-
-  useEffect(() => { fetchCourses(); }, [fetchCourses]);
-
-  const handleAdd = async () => {
-    if (!form.course_title || !form.fee || !form.duration) return toast.error('Fill all required fields');
-    setSaving(true);
-    try {
-      await api.post(`/teaching/centers/${cid}/courses/`, form);
-      toast.success('Course created!');
-      setShowAdd(false);
-      setForm({ course_title: '', description: '', fee: '', duration: '' });
-      fetchCourses();
-    } catch (e) { toast.error(e.response?.data?.detail || 'Failed'); }
-    finally { setSaving(false); }
-  };
-
-  if (!center) return null;
-  if (loading) return <Loading />;
-
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold text-gray-800">Courses ({courses.length})</h2>
-        <button onClick={() => setShowAdd(true)} className="btn-primary flex items-center space-x-2 text-sm">
-          <FiPlus className="w-4 h-4" /><span>Add Course</span>
-        </button>
-      </div>
-
-      {courses.length === 0 ? (
-        <div className="card text-center py-12 text-gray-400">
-          <FiBook className="w-10 h-10 mx-auto mb-2 opacity-30" />
-          <p>No courses yet</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {courses.map(c => (
-            <div key={c.course_id} className="card hover:shadow-lg transition-shadow cursor-pointer border-l-4 border-blue-500"
-              onClick={() => setSelected(c)}>
-              <div className="flex justify-between items-start">
-                <div className="flex-1">
-                  <h3 className="font-bold text-gray-800">{c.course_title}</h3>
-                  <p className="text-sm text-gray-500 mt-1 line-clamp-2">{c.description || 'No description'}</p>
-                </div>
-                <FiChevronRight className="text-gray-300 flex-shrink-0 ml-2" />
-              </div>
-              <div className="flex items-center space-x-4 mt-3 text-sm text-gray-500">
-                <span className="flex items-center space-x-1"><FiClock className="w-3.5 h-3.5" /><span>{c.duration} weeks</span></span>
-                <span className="font-semibold text-blue-600">৳{c.fee}</span>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Add Course Modal */}
-      <Modal open={showAdd} title="Add New Course" onClose={() => setShowAdd(false)}>
-        <div className="space-y-4">
-          <Field label="Course Title" required>
-            <input className="input-field" value={form.course_title} onChange={e => setForm(p => ({ ...p, course_title: e.target.value }))} placeholder="e.g. HSC Science Batch" />
-          </Field>
-          <Field label="Description">
-            <textarea className="input-field resize-none" rows={3} value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} placeholder="Short description..." />
-          </Field>
-          <div className="grid grid-cols-2 gap-4">
-            <Field label="Fee (৳)" required>
-              <input className="input-field" type="number" value={form.fee} onChange={e => setForm(p => ({ ...p, fee: e.target.value }))} placeholder="5000" />
-            </Field>
-            <Field label="Duration (weeks)" required>
-              <input className="input-field" type="number" value={form.duration} onChange={e => setForm(p => ({ ...p, duration: e.target.value }))} placeholder="12" />
-            </Field>
-          </div>
-          <div className="flex space-x-3 pt-2">
-            <button onClick={() => setShowAdd(false)} className="btn-secondary flex-1">Cancel</button>
-            <button onClick={handleAdd} disabled={saving} className="btn-primary flex-1">{saving ? 'Saving...' : 'Create Course'}</button>
-          </div>
-        </div>
-      </Modal>
-
-      {selected && <CourseDetailModal course={selected} center={center} onClose={() => setSelected(null)} />}
-    </div>
-  );
-};
-
-// ── Course Detail: Batches + Subjects ─────────────────────────────────────────
-const CourseDetailModal = ({ course, center, onClose }) => {
-  const [tab, setTab] = useState('batches');
-  const [batches, setBatches] = useState([]);
-  const [subjects, setSubjects] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [showBatchForm, setShowBatchForm] = useState(false);
-  const [showSubjectForm, setShowSubjectForm] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [batchForm, setBatchForm] = useState({
-    batch_name: '', batch_code: '', batch_type: 'regular',
-    class_shift: 'morning', start_date: '', end_date: '', max_students: 30,
-  });
-  const [subjectForm, setSubjectForm] = useState({ subject_name: '', subject_code: '' });
-  const [selectedBatch, setSelectedBatch] = useState(null);
-  const [assignModal, setAssignModal] = useState(null); // subject to assign teacher
-
-  const reload = useCallback(async () => {
-    try {
-      const [b, s] = await Promise.all([
-        api.get(`/teaching/courses/${course.course_id}/batches/`),
-        api.get(`/teaching/courses/${course.course_id}/subjects/`),
-      ]);
-      setBatches(b.data.data?.results || []);
-      setSubjects(s.data.data?.results || []);
-    } catch {} finally { setLoading(false); }
-  }, [course.course_id]);
-
-  useEffect(() => { reload(); }, [reload]);
-
-  const addBatch = async () => {
-    setSaving(true);
-    try {
-      await api.post(`/teaching/courses/${course.course_id}/batches/`, batchForm);
-      toast.success('Batch created!');
-      setShowBatchForm(false);
-      reload();
-    } catch (e) { toast.error(Object.values(e.response?.data || {})[0]?.[0] || 'Failed'); }
-    finally { setSaving(false); }
-  };
-
-  const addSubject = async () => {
-    setSaving(true);
-    try {
-      await api.post(`/teaching/courses/${course.course_id}/subjects/`, subjectForm);
-      toast.success('Subject created!');
-      setShowSubjectForm(false);
-      reload();
-    } catch (e) { toast.error(Object.values(e.response?.data || {})[0]?.[0] || 'Failed'); }
-    finally { setSaving(false); }
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between p-5 border-b sticky top-0 bg-white z-10">
-          <div>
-            <h2 className="text-lg font-bold text-gray-800">{course.course_title}</h2>
-            <p className="text-sm text-gray-400">{course.duration} weeks · ৳{course.fee}</p>
-          </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 p-1 rounded-lg hover:bg-gray-100"><FiX size={20} /></button>
-        </div>
-
-        <div className="flex border-b px-5">
-          {[['batches', 'Batches'], ['subjects', 'Subjects & Teachers']].map(([key, label]) => (
-            <button key={key} onClick={() => setTab(key)}
-              className={`py-3 px-4 text-sm font-medium border-b-2 transition-colors ${tab === key ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
-              {label}
-            </button>
-          ))}
-        </div>
-
-        <div className="p-5">
-          {loading ? <Loading /> : tab === 'batches' ? (
-            <div className="space-y-3">
-              <div className="flex justify-between items-center">
-                <p className="text-sm text-gray-500">{batches.length} batches</p>
-                <button onClick={() => setShowBatchForm(true)} className="btn-primary text-sm flex items-center space-x-1">
-                  <FiPlus className="w-4 h-4" /><span>Add Batch</span>
-                </button>
-              </div>
-
-              {batches.length === 0 ? <p className="text-gray-400 text-center py-8">No batches yet</p> : batches.map(b => (
-                <div key={b.batch_id}
-                  className="border rounded-lg p-3 hover:bg-blue-50 cursor-pointer transition-colors"
-                  onClick={() => setSelectedBatch(b)}>
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <p className="font-semibold text-gray-800">{b.batch_name}</p>
-                      <p className="text-xs text-gray-400">{b.batch_code} · {b.class_shift} · {b.batch_type}</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Badge text={b.status} color={statusColor(b.status)} />
-                      <FiChevronRight className="text-gray-300 w-4 h-4" />
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
-                    <span><FiCalendar className="inline w-3 h-3 mr-1" />{b.start_date} → {b.end_date}</span>
-                    <span className={`font-medium ${b.is_full ? 'text-red-500' : 'text-green-600'}`}>
-                      {b.enrolled_count}/{b.max_students} students {b.is_full && '(FULL)'}
-                    </span>
-                  </div>
-                </div>
-              ))}
-
-              {showBatchForm && (
-                <div className="border-2 border-blue-200 rounded-xl p-4 bg-blue-50 space-y-3 mt-3">
-                  <h4 className="font-semibold text-gray-700">New Batch</h4>
-                  <div className="grid grid-cols-2 gap-3">
-                    <input className="input-field text-sm" placeholder="Batch name *" value={batchForm.batch_name} onChange={e => setBatchForm(p => ({ ...p, batch_name: e.target.value }))} />
-                    <input className="input-field text-sm" placeholder="Batch code *" value={batchForm.batch_code} onChange={e => setBatchForm(p => ({ ...p, batch_code: e.target.value }))} />
-                    <select className="input-field text-sm" value={batchForm.batch_type} onChange={e => setBatchForm(p => ({ ...p, batch_type: e.target.value }))}>
-                      <option value="regular">Regular</option><option value="crash">Crash</option><option value="online">Online</option>
-                    </select>
-                    <select className="input-field text-sm" value={batchForm.class_shift} onChange={e => setBatchForm(p => ({ ...p, class_shift: e.target.value }))}>
-                      <option value="morning">Morning</option><option value="day">Day</option><option value="evening">Evening</option><option value="night">Night</option>
-                    </select>
-                    <div>
-                      <label className="text-xs text-gray-500 mb-1 block">Start Date *</label>
-                      <input className="input-field text-sm" type="date" value={batchForm.start_date} onChange={e => setBatchForm(p => ({ ...p, start_date: e.target.value }))} />
-                    </div>
-                    <div>
-                      <label className="text-xs text-gray-500 mb-1 block">End Date *</label>
-                      <input className="input-field text-sm" type="date" value={batchForm.end_date} onChange={e => setBatchForm(p => ({ ...p, end_date: e.target.value }))} />
-                    </div>
-                    <input className="input-field text-sm" type="number" placeholder="Max students" value={batchForm.max_students} onChange={e => setBatchForm(p => ({ ...p, max_students: e.target.value }))} />
-                  </div>
-                  <div className="flex space-x-2">
-                    <button onClick={() => setShowBatchForm(false)} className="btn-secondary flex-1 text-sm">Cancel</button>
-                    <button onClick={addBatch} disabled={saving} className="btn-primary flex-1 text-sm">{saving ? 'Saving...' : 'Create Batch'}</button>
-                  </div>
-                </div>
-              )}
-            </div>
-          ) : (
-            /* Subjects tab */
-            <div className="space-y-3">
-              <div className="flex justify-between items-center">
-                <p className="text-sm text-gray-500">{subjects.length} subjects</p>
-                <button onClick={() => setShowSubjectForm(true)} className="btn-primary text-sm flex items-center space-x-1">
-                  <FiPlus className="w-4 h-4" /><span>Add Subject</span>
-                </button>
-              </div>
-
-              {subjects.length === 0 ? <p className="text-gray-400 text-center py-8">No subjects yet</p> : subjects.map(s => (
-                <div key={s.subject_id} className="border rounded-xl p-4 hover:bg-gray-50 transition-colors">
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <p className="font-semibold text-gray-800">{s.subject_name}</p>
-                      <p className="text-xs text-gray-400 mt-0.5">{s.subject_code}</p>
-                    </div>
-                    {/* Assign Teacher button always visible */}
-                    <button
-                      onClick={() => setAssignModal(s)}
-                      className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors ml-2"
-                    >
-                      <FiUserPlus className="w-3 h-3" /> Assign Teacher
-                    </button>
-                  </div>
-
-                  {/* Teacher info */}
-                  <div className="mt-3 pt-3 border-t border-gray-100 flex items-center gap-2">
-                    <FiUser className="w-4 h-4 text-gray-300 flex-shrink-0" />
-                    {s.teacher_name ? (
-                      <span className="text-sm font-medium text-purple-700 bg-purple-50 px-2 py-0.5 rounded-full">
-                        👤 {s.teacher_name}
-                      </span>
-                    ) : (
-                      <span className="text-xs text-gray-400 italic">No teacher assigned</span>
-                    )}
-                    {s.assigned_date && <span className="text-xs text-gray-400 ml-auto">Assigned: {s.assigned_date}</span>}
-                  </div>
-                </div>
-              ))}
-
-              {showSubjectForm && (
-                <div className="border-2 border-blue-200 rounded-xl p-4 bg-blue-50 space-y-3 mt-3">
-                  <h4 className="font-semibold text-gray-700">New Subject</h4>
-                  <input className="input-field text-sm" placeholder="Subject name *" value={subjectForm.subject_name} onChange={e => setSubjectForm(p => ({ ...p, subject_name: e.target.value }))} />
-                  <input className="input-field text-sm" placeholder="Subject code * (e.g. PHY-101)" value={subjectForm.subject_code} onChange={e => setSubjectForm(p => ({ ...p, subject_code: e.target.value }))} />
-                  <div className="flex space-x-2">
-                    <button onClick={() => setShowSubjectForm(false)} className="btn-secondary flex-1 text-sm">Cancel</button>
-                    <button onClick={addSubject} disabled={saving} className="btn-primary flex-1 text-sm">{saving ? 'Saving...' : 'Create Subject'}</button>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Batch Students Modal */}
-      {selectedBatch && (
-        <BatchStudentsModal batch={selectedBatch} center={center} onClose={() => setSelectedBatch(null)} />
-      )}
-
-      {/* Assign Teacher Modal */}
-      {assignModal && (
-        <AssignTeacherModal
-          subject={assignModal}
-          center={center}
-          batches={batches}
-          onClose={() => setAssignModal(null)}
-          onDone={() => { setAssignModal(null); reload(); }}
-        />
-      )}
-    </div>
-  );
-};
-
-// ── Assign Teacher Modal (from subject context) ────────────────────────────────
-const AssignTeacherModal = ({ subject, center, batches, onClose, onDone }) => {
-  const [teachers, setTeachers] = useState([]);
-  const [selectedTeacher, setSelectedTeacher] = useState('');
-  const [selectedBatch, setSelectedBatch] = useState('');
-  const [saving, setSaving] = useState(false);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    api.get(`/centers/${center.coaching_center_id}/members/`)
-      .then(r => setTeachers(r.data.data?.teachers || []))
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, [center.coaching_center_id]);
-
-  const assign = async () => {
-    if (!selectedTeacher || !selectedBatch) return toast.error('Select teacher and batch');
-    setSaving(true);
-    try {
-      await api.post('/teaching/assignments/teachers/', {
-        coaching_center: center.coaching_center_id,
-        course: subject.course,
-        batch: parseInt(selectedBatch),
-        subject: subject.subject_id,
-        teacher: parseInt(selectedTeacher),
-      });
-      toast.success('Teacher assigned successfully!');
-      onDone();
-    } catch (e) {
-      const err = e.response?.data;
-      const msg = err?.detail || err?.teacher?.[0] || err?.batch?.[0] || Object.values(err || {})[0]?.[0] || 'Assignment failed';
-      toast.error(msg);
-    } finally { setSaving(false); }
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[60] p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-md">
-        <div className="flex items-center justify-between p-5 border-b">
-          <div>
-            <h3 className="font-bold text-gray-800">Assign Teacher</h3>
-            <p className="text-xs text-gray-400 mt-0.5">Subject: {subject.subject_name} ({subject.subject_code})</p>
-          </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 p-1 rounded-lg hover:bg-gray-100"><FiX size={18} /></button>
-        </div>
-        <div className="p-5 space-y-4">
-          {loading ? <Loading /> : (
-            <>
-              <Field label="Select Teacher" required>
-                <select className="input-field" value={selectedTeacher} onChange={e => setSelectedTeacher(e.target.value)}>
-                  <option value="">-- Select a teacher --</option>
-                  {teachers.length === 0 ? (
-                    <option disabled>No teachers available. Add teachers first.</option>
-                  ) : teachers.map(t => (
-                    <option key={t.user_id} value={t.user_id}>{t.name} ({t.email})</option>
-                  ))}
-                </select>
-              </Field>
-
-              <Field label="Select Batch" required>
-                <select className="input-field" value={selectedBatch} onChange={e => setSelectedBatch(e.target.value)}>
-                  <option value="">-- Select a batch --</option>
-                  {batches.length === 0 ? (
-                    <option disabled>No batches available</option>
-                  ) : batches.map(b => (
-                    <option key={b.batch_id} value={b.batch_id}>{b.batch_name} ({b.batch_code})</option>
-                  ))}
-                </select>
-              </Field>
-
-              {teachers.length === 0 && (
-                <div className="flex items-start gap-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800">
-                  <FiAlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                  Go to the Teachers tab to add teachers to your center first.
-                </div>
-              )}
-
-              <div className="flex space-x-3 pt-2">
-                <button onClick={onClose} className="btn-secondary flex-1">Cancel</button>
-                <button onClick={assign} disabled={saving || !selectedTeacher || !selectedBatch} className="btn-primary flex-1">
-                  {saving ? 'Assigning...' : 'Assign Teacher'}
-                </button>
-              </div>
-            </>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// ── Batch Students Modal — full details with stats ────────────────────────────
-const BatchStudentsModal = ({ batch, center, onClose }) => {
-  const { user } = useAuthStore();
-  const canManage = ['coaching_admin', 'coaching_manager', 'coaching_staff', 'teacher'].includes(user?.role_name || user?.role);
-
-  const [students, setStudents] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [enrolling, setEnrolling] = useState(false);
-  const [studentEmail, setStudentEmail] = useState('');
-  const [selectedStudent, setSelectedStudent] = useState(null); // for details panel
-  const [banTarget, setBanTarget] = useState(null);
-  const [banning, setBanning] = useState(false);
-
-  const fetchStudents = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await api.get(`/academics/batches/${batch.batch_id}/students/`);
-      const list = Array.isArray(res.data) ? res.data : (res.data.data || res.data.results || []);
-      setStudents(list);
-    } catch {} finally { setLoading(false); }
-  }, [batch.batch_id]);
-
-  useEffect(() => { fetchStudents(); }, [fetchStudents]);
-
-  const enrollStudent = async () => {
-    if (!studentEmail.trim()) return toast.error('Enter student email or ID');
-    setEnrolling(true);
-    try {
-      // Try numeric ID first, then search by email via center members
-      const isId = /^\d+$/.test(studentEmail.trim());
-      if (isId) {
-        await api.post(`/academics/batches/${batch.batch_id}/enroll/`, { student: parseInt(studentEmail) });
-      } else {
-        // Find student by email from center members
-        const mem = await api.get(`/centers/${center.coaching_center_id}/members/`);
-        const all = mem.data.data?.students || [];
-        const found = all.find(s => s.email?.toLowerCase() === studentEmail.toLowerCase());
-        if (!found) { toast.error('Student not found in this center'); setEnrolling(false); return; }
-        await api.post(`/academics/batches/${batch.batch_id}/enroll/`, { student: found.user_id });
-      }
-      toast.success('Student enrolled!');
-      setStudentEmail('');
-      fetchStudents();
-    } catch (e) { toast.error(e.response?.data?.non_field_errors?.[0] || e.response?.data?.detail || 'Enrollment failed'); }
-    finally { setEnrolling(false); }
-  };
-
-  const banStudent = async () => {
-    if (!banTarget) return;
-    setBanning(true);
-    try {
-      await api.post(`/academics/enrollments/${banTarget.enrollment_id}/remove/`);
-      toast.success(`${banTarget.student_name} removed from batch`);
-      setBanTarget(null);
-      if (selectedStudent?.enrollment_id === banTarget.enrollment_id) setSelectedStudent(null);
-      fetchStudents();
-    } catch (e) { toast.error(e.response?.data?.detail || 'Failed'); }
-    finally { setBanning(false); }
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[60] p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[85vh] flex flex-col">
-        {/* Header */}
-        <div className="flex items-center justify-between p-5 border-b">
-          <div>
-            <h3 className="font-bold text-gray-800 text-lg">{batch.batch_name}</h3>
-            <div className="flex items-center gap-3 mt-1 text-xs text-gray-400">
-              <span>{batch.batch_code}</span>
-              <Badge text={batch.status} color={statusColor(batch.status)} />
-              <Badge text={batch.class_shift} color={statusColor(batch.class_shift)} />
-              <Badge text={batch.batch_type} color={statusColor(batch.batch_type)} />
-              <span className={`font-semibold ${batch.is_full ? 'text-red-500' : 'text-green-600'}`}>
-                {batch.enrolled_count}/{batch.max_students} enrolled
-              </span>
-            </div>
-          </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 p-1 rounded-lg hover:bg-gray-100"><FiX size={20} /></button>
-        </div>
-
-        <div className="flex flex-1 overflow-hidden">
-          {/* Left — student list */}
-          <div className="w-full md:w-1/2 flex flex-col border-r">
-            {/* Enroll bar */}
-            {canManage && (
-              <div className="p-4 border-b bg-gray-50">
-                <p className="text-xs text-gray-500 mb-2 font-medium">Enroll Student (email or user ID)</p>
-                <div className="flex gap-2">
-                  <input
-                    className="input-field flex-1 text-sm"
-                    placeholder="student@email.com or user ID"
-                    value={studentEmail}
-                    onChange={e => setStudentEmail(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && enrollStudent()}
-                  />
-                  <button onClick={enrollStudent} disabled={enrolling || batch.is_full}
-                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg disabled:opacity-50 whitespace-nowrap">
-                    {enrolling ? '...' : '+ Enroll'}
-                  </button>
-                </div>
-                {batch.is_full && <p className="text-xs text-red-500 mt-1">Batch is full</p>}
-              </div>
-            )}
-
-            {/* List */}
-            <div className="flex-1 overflow-y-auto">
-              {loading ? <div className="p-6"><Loading /></div> : students.length === 0 ? (
-                <div className="p-8 text-center text-gray-400">
-                  <FiUsers className="w-10 h-10 mx-auto mb-2 opacity-30" />
-                  <p>No students enrolled</p>
-                </div>
-              ) : students.map(s => (
-                <div
-                  key={s.enrollment_id}
-                  onClick={() => setSelectedStudent(s)}
-                  className={`flex items-center justify-between px-4 py-3 border-b cursor-pointer transition-colors ${selectedStudent?.enrollment_id === s.enrollment_id ? 'bg-blue-50 border-l-4 border-l-blue-500' : 'hover:bg-gray-50'}`}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
-                      {s.student_name?.[0]?.toUpperCase() || '?'}
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold text-gray-800">{s.student_name}</p>
-                      <p className="text-xs text-gray-400">{s.student_email}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge text={s.enrollment_status} color={statusColor(s.enrollment_status)} />
-                    {canManage && s.enrollment_status === 'active' && (
-                      <button
-                        onClick={e => { e.stopPropagation(); setBanTarget(s); }}
-                        title="Remove from batch"
-                        className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                      >
-                        <FiUserX className="w-4 h-4" />
-                      </button>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Right — Student Detail Panel */}
-          <div className="hidden md:flex flex-col w-1/2">
-            {!selectedStudent ? (
-              <div className="flex flex-col items-center justify-center h-full text-gray-300 p-8 text-center">
-                <FiUser className="w-14 h-14 mb-3 opacity-30" />
-                <p className="text-sm">Click a student to see their full details</p>
-              </div>
-            ) : (
-              <StudentDetailPanel student={selectedStudent} batch={batch} />
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Ban confirm */}
-      <Confirm
-        open={!!banTarget}
-        msg={`Remove "${banTarget?.student_name}" from this batch? They can be re-enrolled later.`}
-        onConfirm={banStudent}
-        onCancel={() => setBanTarget(null)}
-        loading={banning}
-        dangerous
-      />
-    </div>
-  );
-};
-
-// ── Student Detail Panel ───────────────────────────────────────────────────────
-const StudentDetailPanel = ({ student, batch }) => {
-  const [stats, setStats] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    // Fetch exam results for this student in this batch
-    Promise.all([
-      api.get(`/exams/batches/${batch.batch_id}/`).catch(() => ({ data: { data: [] } })),
-    ]).then(([exams]) => {
-      const examList = Array.isArray(exams.data) ? exams.data :
-        (exams.data?.data?.results || exams.data?.results || exams.data?.data || []);
-      setStats({
-        totalExams: examList.length,
-        attendedExams: examList.filter(e => e.status === 'completed').length,
-      });
-    }).finally(() => setLoading(false));
-  }, [student.student, batch.batch_id]);
-
-  return (
-    <div className="flex flex-col h-full overflow-y-auto">
-      {/* Student header */}
-      <div className="p-5 bg-gradient-to-br from-blue-50 to-purple-50 border-b">
-        <div className="flex items-center gap-4">
-          <div className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white text-xl font-bold flex-shrink-0">
-            {student.student_name?.[0]?.toUpperCase() || '?'}
-          </div>
-          <div>
-            <h4 className="font-bold text-gray-800 text-lg">{student.student_name}</h4>
-            <p className="text-sm text-gray-500">{student.student_email}</p>
-            <div className="mt-1"><Badge text={student.enrollment_status} color={statusColor(student.enrollment_status)} /></div>
-          </div>
-        </div>
-      </div>
-
-      <div className="p-5 space-y-5 flex-1">
-        {/* Enrollment info */}
-        <div>
-          <h5 className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Enrollment Info</h5>
-          <div className="grid grid-cols-2 gap-2 text-sm">
-            <div className="bg-gray-50 rounded-lg p-3">
-              <p className="text-xs text-gray-400">Enrolled</p>
-              <p className="font-semibold text-gray-700 mt-0.5">{student.enrolled_at ? new Date(student.enrolled_at).toLocaleDateString('en-BD') : '—'}</p>
-            </div>
-            <div className="bg-gray-50 rounded-lg p-3">
-              <p className="text-xs text-gray-400">Status</p>
-              <p className="font-semibold text-gray-700 mt-0.5 capitalize">{student.enrollment_status}</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Batch info */}
-        <div>
-          <h5 className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Batch Info</h5>
-          <div className="space-y-2 text-sm">
-            <div className="flex justify-between py-1 border-b border-gray-100">
-              <span className="text-gray-500">Batch</span>
-              <span className="font-medium text-gray-800">{batch.batch_name}</span>
-            </div>
-            <div className="flex justify-between py-1 border-b border-gray-100">
-              <span className="text-gray-500">Shift</span>
-              <span className="font-medium text-gray-800 capitalize">{batch.class_shift}</span>
-            </div>
-            <div className="flex justify-between py-1 border-b border-gray-100">
-              <span className="text-gray-500">Type</span>
-              <span className="font-medium text-gray-800 capitalize">{batch.batch_type}</span>
-            </div>
-            <div className="flex justify-between py-1 border-b border-gray-100">
-              <span className="text-gray-500">Duration</span>
-              <span className="font-medium text-gray-800">{batch.start_date} → {batch.end_date}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Stats */}
-        {loading ? (
-          <div className="text-xs text-gray-400">Loading stats...</div>
-        ) : stats && (
-          <div>
-            <h5 className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Academic Activity</h5>
-            <div className="grid grid-cols-2 gap-2">
-              <div className="bg-blue-50 rounded-xl p-3 text-center">
-                <p className="text-2xl font-bold text-blue-600">{stats.totalExams}</p>
-                <p className="text-xs text-blue-500 mt-0.5">Total Exams</p>
-              </div>
-              <div className="bg-green-50 rounded-xl p-3 text-center">
-                <p className="text-2xl font-bold text-green-600">{stats.attendedExams}</p>
-                <p className="text-xs text-green-500 mt-0.5">Completed</p>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-};
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// TAB: Teachers — with Assign Teacher to Subject inline
+// TEACHERS TAB
 // ═══════════════════════════════════════════════════════════════════════════════
 const TeachersTab = ({ center }) => {
   const [teachers, setTeachers] = useState([]);
-  const [assignments, setAssignments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
   const [email, setEmail] = useState('');
-  const [adding, setAdding] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [removeTarget, setRemoveTarget] = useState(null);
   const [removing, setRemoving] = useState(false);
-  const [selectedTeacher, setSelectedTeacher] = useState(null); // view assignments
+  const [search, setSearch] = useState('');
   const cid = center?.coaching_center_id;
 
-  const reload = useCallback(async () => {
-    if (!cid) return;
+  const load = useCallback(async () => {
     setLoading(true);
-    try {
-      const [m, a] = await Promise.all([
-        api.get(`/centers/${cid}/members/`),
-        api.get(`/teaching/centers/${cid}/assignments/`),
-      ]);
-      setTeachers(m.data.data?.teachers || []);
-      setAssignments(a.data.data?.results || []);
-    } catch {} finally { setLoading(false); }
+    try { const r = await api.get(`/centers/${cid}/members/?role=teacher`); setTeachers(r.data.data?.teachers || []); }
+    catch { toast.error('Failed'); } finally { setLoading(false); }
   }, [cid]);
 
-  useEffect(() => { reload(); }, [reload]);
+  useEffect(() => { if (cid) load(); }, [load, cid]);
 
-  const addTeacher = async () => {
+  const add = async () => {
     if (!email.trim()) return toast.error('Enter email');
-    setAdding(true);
-    try {
-      await api.post(`/centers/${cid}/members/add-teacher/`, { email });
-      toast.success('Teacher added!');
-      setEmail(''); setShowAdd(false); reload();
-    } catch (e) { toast.error(e.response?.data?.detail || e.response?.data?.email?.[0] || 'Failed'); }
-    finally { setAdding(false); }
+    setSaving(true);
+    try { await api.post(`/centers/${cid}/members/add-teacher/`, { email }); toast.success('Teacher added!'); setEmail(''); setShowAdd(false); load(); }
+    catch(e) { toast.error(e.response?.data?.email?.[0] || e.response?.data?.detail || 'Failed'); } finally { setSaving(false); }
   };
 
-  const removeTeacher = async () => {
+  const remove = async () => {
     setRemoving(true);
-    try {
-      await api.delete(`/centers/${cid}/members/${removeTarget.user_id}/remove/`);
-      toast.success('Teacher removed');
-      setRemoveTarget(null); reload();
-    } catch (e) { toast.error(e.response?.data?.detail || 'Failed'); }
-    finally { setRemoving(false); }
+    try { await api.delete(`/centers/${cid}/members/${removeTarget.user_id}/remove/`); toast.success('Teacher removed.'); setRemoveTarget(null); load(); }
+    catch { toast.error('Failed'); } finally { setRemoving(false); }
   };
 
-  // Group assignments by teacher
-  const assignmentsByTeacher = (teacherId) =>
-    assignments.filter(a => a.teacher === teacherId || a.teacher?.user_id === teacherId);
+  const filtered = teachers.filter(t => !search || t.name.toLowerCase().includes(search.toLowerCase()) || t.email.toLowerCase().includes(search.toLowerCase()));
 
-  if (!center) return null;
   if (loading) return <Loading />;
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold text-gray-800">Teachers ({teachers.length})</h2>
-        <button onClick={() => setShowAdd(true)} className="btn-primary text-sm flex items-center space-x-1">
-          <FiPlus className="w-4 h-4" /><span>Add Teacher</span>
+        <h2 className="text-xl font-bold text-gray-800">Teachers <span className="text-gray-400 font-normal text-base">({teachers.length})</span></h2>
+        <button onClick={() => setShowAdd(true)} className="flex items-center space-x-2 bg-violet-600 hover:bg-violet-700 text-white px-4 py-2.5 rounded-xl text-sm font-medium transition shadow-sm">
+          <FiUserPlus className="w-4 h-4"/><span>Add Teacher</span>
         </button>
       </div>
 
-      {showAdd && (
-        <div className="card border-2 border-blue-200 bg-blue-50 space-y-3">
-          <h4 className="font-semibold text-gray-700">Add Teacher by Email</h4>
-          <p className="text-xs text-gray-500">The user must already be registered with teacher role.</p>
-          <div className="flex gap-2">
-            <input className="input-field flex-1 text-sm" placeholder="teacher@email.com" type="email" value={email} onChange={e => setEmail(e.target.value)} onKeyDown={e => e.key === 'Enter' && addTeacher()} />
-            <button onClick={() => setShowAdd(false)} className="btn-secondary text-sm px-3">Cancel</button>
-            <button onClick={addTeacher} disabled={adding} className="btn-primary text-sm px-4">{adding ? 'Adding...' : 'Add'}</button>
-          </div>
-        </div>
-      )}
-
-      {teachers.length === 0 ? (
-        <div className="card text-center py-12 text-gray-400">
-          <FiUsers className="w-10 h-10 mx-auto mb-2 opacity-30" />
-          <p>No teachers yet</p>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {teachers.map(t => {
-            const ta = assignmentsByTeacher(t.user_id);
-            const expanded = selectedTeacher === t.user_id;
-            return (
-              <div key={t.user_id} className="card border hover:shadow-md transition-shadow">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-400 to-blue-500 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
-                      {t.name?.[0]?.toUpperCase() || 'T'}
-                    </div>
-                    <div>
-                      <p className="font-semibold text-gray-800">{t.name}</p>
-                      <p className="text-xs text-gray-400">{t.email}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs bg-purple-50 text-purple-700 px-2 py-1 rounded-full font-medium">
-                      {ta.length} subject{ta.length !== 1 ? 's' : ''}
-                    </span>
-                    <button
-                      onClick={() => setSelectedTeacher(expanded ? null : t.user_id)}
-                      className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                      title="View assignments"
-                    >
-                      <FiEye className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => setRemoveTarget(t)}
-                      className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                      title="Remove teacher"
-                    >
-                      <FiUserX className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Expanded — show subjects assigned to this teacher */}
-                {expanded && (
-                  <div className="mt-4 pt-4 border-t border-gray-100">
-                    <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-3">Assigned Subjects</p>
-                    {ta.length === 0 ? (
-                      <p className="text-sm text-gray-400 italic">No subjects assigned yet</p>
-                    ) : (
-                      <div className="space-y-2">
-                        {ta.map(a => (
-                          <div key={a.assignment_id} className="flex items-center justify-between bg-purple-50 rounded-lg px-3 py-2">
-                            <div>
-                              <p className="text-sm font-semibold text-purple-800">{a.subject_name}</p>
-                              <p className="text-xs text-purple-500">{a.batch_name}</p>
-                            </div>
-                            <Badge text="active" color="green" />
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      <Confirm
-        open={!!removeTarget}
-        msg={`Remove "${removeTarget?.name}" from this center?`}
-        onConfirm={removeTeacher}
-        onCancel={() => setRemoveTarget(null)}
-        loading={removing}
-      />
-    </div>
-  );
-};
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// TAB: Students
-// ═══════════════════════════════════════════════════════════════════════════════
-const StudentsTab = ({ center }) => {
-  const { user } = useAuthStore();
-  const canManage = ['coaching_admin', 'coaching_manager', 'coaching_staff', 'teacher'].includes(user?.role_name || user?.role);
-
-  const [students, setStudents] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [showAdd, setShowAdd] = useState(false);
-  const [email, setEmail] = useState('');
-  const [adding, setAdding] = useState(false);
-  const [search, setSearch] = useState('');
-  const [removeTarget, setRemoveTarget] = useState(null);
-  const [removing, setRemoving] = useState(false);
-  const cid = center?.coaching_center_id;
-
-  const reload = useCallback(async () => {
-    if (!cid) return;
-    setLoading(true);
-    try {
-      const r = await api.get(`/centers/${cid}/members/`);
-      setStudents(r.data.data?.students || []);
-    } catch {} finally { setLoading(false); }
-  }, [cid]);
-
-  useEffect(() => { reload(); }, [reload]);
-
-  const addStudent = async () => {
-    if (!email.trim()) return toast.error('Enter email');
-    setAdding(true);
-    try {
-      await api.post(`/centers/${cid}/members/add-student/`, { email });
-      toast.success('Student added!');
-      setEmail(''); setShowAdd(false); reload();
-    } catch (e) { toast.error(e.response?.data?.detail || e.response?.data?.email?.[0] || 'Failed'); }
-    finally { setAdding(false); }
-  };
-
-  const removeStudent = async () => {
-    setRemoving(true);
-    try {
-      await api.delete(`/centers/${cid}/members/${removeTarget.user_id}/remove/`);
-      toast.success('Student removed');
-      setRemoveTarget(null); reload();
-    } catch (e) { toast.error(e.response?.data?.detail || 'Failed'); }
-    finally { setRemoving(false); }
-  };
-
-  const filtered = students.filter(s =>
-    s.name?.toLowerCase().includes(search.toLowerCase()) ||
-    s.email?.toLowerCase().includes(search.toLowerCase())
-  );
-
-  if (!center) return null;
-  if (loading) return <Loading />;
-
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold text-gray-800">Students ({students.length})</h2>
-        {canManage && (
-          <button onClick={() => setShowAdd(true)} className="btn-primary text-sm flex items-center space-x-1">
-            <FiPlus className="w-4 h-4" /><span>Add Student</span>
-          </button>
-        )}
-      </div>
-
-      {showAdd && (
-        <div className="card border-2 border-blue-200 bg-blue-50 space-y-3">
-          <h4 className="font-semibold text-gray-700">Add Student by Email</h4>
-          <div className="flex gap-2">
-            <input className="input-field flex-1 text-sm" placeholder="student@email.com" type="email" value={email} onChange={e => setEmail(e.target.value)} onKeyDown={e => e.key === 'Enter' && addStudent()} />
-            <button onClick={() => setShowAdd(false)} className="btn-secondary text-sm px-3">Cancel</button>
-            <button onClick={addStudent} disabled={adding} className="btn-primary text-sm px-4">{adding ? 'Adding...' : 'Add'}</button>
-          </div>
-        </div>
-      )}
-
       <div className="relative">
-        <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
-        <input className="input-field pl-9 text-sm" placeholder="Search students..." value={search} onChange={e => setSearch(e.target.value)} />
+        <FiSearch className="absolute left-3.5 top-3 text-gray-400 w-4 h-4"/>
+        <input className={inputCls+' pl-10'} placeholder="Search teachers..." value={search} onChange={e=>setSearch(e.target.value)}/>
       </div>
 
       {filtered.length === 0 ? (
-        <div className="card text-center py-12 text-gray-400">
-          <FiUsers className="w-10 h-10 mx-auto mb-2 opacity-30" />
-          <p>{search ? 'No results' : 'No students yet'}</p>
-        </div>
+        <div className="bg-white rounded-2xl border border-dashed border-gray-200 py-16 text-center text-gray-400"><FiUsers className="w-10 h-10 mx-auto mb-2 opacity-30"/><p>No teachers yet</p></div>
       ) : (
-        <div className="card overflow-hidden p-0">
-          <table className="w-full">
-            <thead className="bg-gray-50 border-b">
-              <tr>
-                <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">#</th>
-                <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Student</th>
-                <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide hidden md:table-cell">Email</th>
-                <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide hidden md:table-cell">Phone</th>
-                {canManage && <th className="px-5 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Action</th>}
-              </tr>
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 border-b border-gray-100">
+              <tr>{['Name','Email','Phone','Joined',''].map(h=><th key={h} className={`px-5 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wide ${h===''?'text-right':'text-left'}`}>{h}</th>)}</tr>
             </thead>
-            <tbody>
-              {filtered.map((s, i) => (
-                <tr key={s.user_id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                  <td className="px-5 py-3 text-sm text-gray-400">{i + 1}</td>
-                  <td className="px-5 py-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-green-400 to-blue-500 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
-                        {s.name?.[0]?.toUpperCase() || '?'}
-                      </div>
-                      <span className="font-semibold text-sm text-gray-800">{s.name}</span>
-                    </div>
+            <tbody className="divide-y divide-gray-50">
+              {filtered.map(t => (
+                <tr key={t.membership_id} className="hover:bg-gray-50 transition">
+                  <td className="px-5 py-4 font-semibold text-gray-800">{t.name}</td>
+                  <td className="px-5 py-4 text-gray-400">{t.email}</td>
+                  <td className="px-5 py-4 text-gray-400">{t.phone||'—'}</td>
+                  <td className="px-5 py-4 text-gray-400 text-xs">{new Date(t.joined_at).toLocaleDateString()}</td>
+                  <td className="px-5 py-4 text-right">
+                    <button onClick={()=>setRemoveTarget(t)} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500 transition ml-auto"><FiTrash2 className="w-4 h-4"/></button>
                   </td>
-                  <td className="px-5 py-3 text-sm text-gray-500 hidden md:table-cell">{s.email}</td>
-                  <td className="px-5 py-3 text-sm text-gray-500 hidden md:table-cell">{s.phone || '—'}</td>
-                  {canManage && (
-                    <td className="px-5 py-3 text-right">
-                      <button
-                        onClick={() => setRemoveTarget(s)}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors"
-                      >
-                        <FiUserX className="w-3.5 h-3.5" /> Remove
-                      </button>
-                    </td>
-                  )}
                 </tr>
               ))}
             </tbody>
@@ -1135,242 +782,165 @@ const StudentsTab = ({ center }) => {
         </div>
       )}
 
-      <Confirm
-        open={!!removeTarget}
-        msg={`Remove "${removeTarget?.name}" from this coaching center?`}
-        onConfirm={removeStudent}
-        onCancel={() => setRemoveTarget(null)}
-        loading={removing}
-      />
+      <Modal open={showAdd} title="Add Teacher" onClose={()=>setShowAdd(false)}>
+        <div className="space-y-4">
+          <p className="text-sm text-gray-500">Enter the email of a registered teacher to add them to your center.</p>
+          <Field label="Teacher Email" required><input className={inputCls} type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="teacher@example.com"/></Field>
+          <div className="flex space-x-3">
+            <button onClick={()=>setShowAdd(false)} className="flex-1 px-4 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-600 hover:bg-gray-50 transition">Cancel</button>
+            <button onClick={add} disabled={saving} className="flex-1 px-4 py-2.5 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-sm font-medium transition disabled:opacity-50">{saving?'Adding...':'Add Teacher'}</button>
+          </div>
+        </div>
+      </Modal>
+
+      <ConfirmDialog open={!!removeTarget} title="Remove Teacher" message={`Remove ${removeTarget?.name} from your center?`} confirmLabel="Remove" onConfirm={remove} onCancel={()=>setRemoveTarget(null)} loading={removing}/>
     </div>
   );
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// TAB: Assign Teacher (standalone — all assignments overview)
+// STUDENTS TAB
 // ═══════════════════════════════════════════════════════════════════════════════
-const AssignTeacherTab = ({ center }) => {
-  const [teachers, setTeachers] = useState([]);
-  const [courses, setCourses] = useState([]);
-  const [assignments, setAssignments] = useState([]);
+const StudentsTab = ({ center }) => {
+  const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showAdd, setShowAdd] = useState(false);
+  const [email, setEmail] = useState('');
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({ teacher: '', course: '', batch: '', subject: '' });
-  const [batches, setBatches] = useState([]);
-  const [subjects, setSubjects] = useState([]);
+  const [removeTarget, setRemoveTarget] = useState(null);
+  const [removing, setRemoving] = useState(false);
+  const [search, setSearch] = useState('');
   const cid = center?.coaching_center_id;
 
-  const reload = useCallback(async () => {
-    if (!cid) return;
+  const load = useCallback(async () => {
     setLoading(true);
-    try {
-      const [m, c, a] = await Promise.all([
-        api.get(`/centers/${cid}/members/`),
-        api.get(`/teaching/centers/${cid}/courses/`),
-        api.get(`/teaching/centers/${cid}/assignments/`),
-      ]);
-      setTeachers(m.data.data?.teachers || []);
-      setCourses(c.data.data?.results || []);
-      setAssignments(a.data.data?.results || []);
-    } catch {} finally { setLoading(false); }
+    try { const r = await api.get(`/centers/${cid}/members/?role=student`); setStudents(r.data.data?.students || []); }
+    catch { toast.error('Failed'); } finally { setLoading(false); }
   }, [cid]);
 
-  useEffect(() => { reload(); }, [reload]);
+  useEffect(() => { if (cid) load(); }, [load, cid]);
 
-  // When course changes → load batches + subjects
-  useEffect(() => {
-    if (!form.course) { setBatches([]); setSubjects([]); return; }
-    Promise.all([
-      api.get(`/teaching/courses/${form.course}/batches/`),
-      api.get(`/teaching/courses/${form.course}/subjects/`),
-    ]).then(([b, s]) => {
-      setBatches(b.data.data?.results || []);
-      setSubjects(s.data.data?.results || []);
-    }).catch(() => {});
-    setForm(p => ({ ...p, batch: '', subject: '' }));
-  }, [form.course]);
-
-  const assign = async () => {
-    if (!form.teacher || !form.course || !form.batch || !form.subject) return toast.error('Fill all fields');
+  const add = async () => {
+    if (!email.trim()) return toast.error('Enter email');
     setSaving(true);
-    try {
-      await api.post('/teaching/assignments/teachers/', {
-        coaching_center: cid,
-        course: parseInt(form.course),
-        batch: parseInt(form.batch),
-        subject: parseInt(form.subject),
-        teacher: parseInt(form.teacher),
-      });
-      toast.success('Teacher assigned!');
-      setForm({ teacher: '', course: '', batch: '', subject: '' });
-      reload();
-    } catch (e) {
-      const err = e.response?.data;
-      const msg = err?.detail || err?.teacher?.[0] || err?.batch?.[0] || err?.subject?.[0] || Object.values(err || {})[0]?.[0] || 'Failed';
-      toast.error(msg);
-    } finally { setSaving(false); }
+    try { await api.post(`/centers/${cid}/members/add-student/`, { email }); toast.success('Student added!'); setEmail(''); setShowAdd(false); load(); }
+    catch(e) { toast.error(e.response?.data?.email?.[0] || e.response?.data?.detail || 'Failed'); } finally { setSaving(false); }
   };
 
-  if (!center) return null;
+  const remove = async () => {
+    setRemoving(true);
+    try { await api.delete(`/centers/${cid}/members/${removeTarget.user_id}/remove/`); toast.success('Removed.'); setRemoveTarget(null); load(); }
+    catch { toast.error('Failed'); } finally { setRemoving(false); }
+  };
+
+  const filtered = students.filter(s => !search || s.name.toLowerCase().includes(search.toLowerCase()) || s.email.toLowerCase().includes(search.toLowerCase()));
+
   if (loading) return <Loading />;
 
-  const selClass = "input-field text-sm";
-
   return (
-    <div className="space-y-6">
-      <h2 className="text-xl font-bold text-gray-800">Assign Teacher to Subject</h2>
-
-      {/* Form card */}
-      <div className="card border-2 border-blue-100 space-y-4">
-        <h3 className="font-bold text-gray-700 text-base">New Assignment</h3>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Field label="Teacher" required>
-            <select className={selClass} value={form.teacher} onChange={e => setForm(p => ({ ...p, teacher: e.target.value }))}>
-              <option value="">Select teacher...</option>
-              {teachers.map(t => <option key={t.user_id} value={t.user_id}>{t.name} ({t.email})</option>)}
-            </select>
-          </Field>
-
-          <Field label="Course" required>
-            <select className={selClass} value={form.course} onChange={e => setForm(p => ({ ...p, course: e.target.value }))}>
-              <option value="">Select course...</option>
-              {courses.map(c => <option key={c.course_id} value={c.course_id}>{c.course_title}</option>)}
-            </select>
-          </Field>
-
-          <Field label="Batch" required>
-            <select className={selClass} value={form.batch} onChange={e => setForm(p => ({ ...p, batch: e.target.value }))} disabled={!form.course}>
-              <option value="">Select batch...</option>
-              {batches.map(b => <option key={b.batch_id} value={b.batch_id}>{b.batch_name} ({b.batch_code})</option>)}
-            </select>
-          </Field>
-
-          <Field label="Subject" required>
-            <select className={selClass} value={form.subject} onChange={e => setForm(p => ({ ...p, subject: e.target.value }))} disabled={!form.course}>
-              <option value="">Select subject...</option>
-              {subjects.map(s => <option key={s.subject_id} value={s.subject_id}>{s.subject_name} ({s.subject_code})</option>)}
-            </select>
-          </Field>
-        </div>
-
-        <button onClick={assign} disabled={saving} className="btn-primary w-full">
-          {saving ? 'Assigning...' : 'Assign Teacher'}
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-bold text-gray-800">Students <span className="text-gray-400 font-normal text-base">({students.length})</span></h2>
+        <button onClick={() => setShowAdd(true)} className="flex items-center space-x-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl text-sm font-medium transition shadow-sm">
+          <FiUserPlus className="w-4 h-4"/><span>Add Student</span>
         </button>
       </div>
 
-      {/* Assignments table */}
-      <div>
-        <h3 className="font-bold text-gray-700 mb-3">All Assignments ({assignments.length})</h3>
-        {assignments.length === 0 ? (
-          <div className="card text-center py-10 text-gray-400">
-            <FiAward className="w-10 h-10 mx-auto mb-2 opacity-30" />
-            <p className="text-sm">No assignments yet</p>
-          </div>
-        ) : (
-          <div className="card overflow-hidden p-0">
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b">
-                <tr>
-                  {['Teacher', 'Subject', 'Batch', 'Assigned'].map(h => (
-                    <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {assignments.map(a => (
-                  <tr key={a.assignment_id} className="border-b border-gray-100 hover:bg-gray-50">
-                    <td className="px-4 py-3">
-                      <p className="text-sm font-semibold text-gray-800">{a.teacher_name}</p>
-                      <p className="text-xs text-gray-400">{a.teacher_email}</p>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-700 font-medium">{a.subject_name}</td>
-                    <td className="px-4 py-3"><Badge text={a.batch_name} color="blue" /></td>
-                    <td className="px-4 py-3 text-xs text-gray-400">
-                      {a.assigned_at ? new Date(a.assigned_at).toLocaleDateString('en-BD') : '—'}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+      <div className="relative">
+        <FiSearch className="absolute left-3.5 top-3 text-gray-400 w-4 h-4"/>
+        <input className={inputCls+' pl-10'} placeholder="Search students..." value={search} onChange={e=>setSearch(e.target.value)}/>
       </div>
+
+      {filtered.length === 0 ? (
+        <div className="bg-white rounded-2xl border border-dashed border-gray-200 py-16 text-center text-gray-400"><FiUsers className="w-10 h-10 mx-auto mb-2 opacity-30"/><p>No students yet</p></div>
+      ) : (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 border-b border-gray-100">
+              <tr>{['Name','Email','Phone','Joined',''].map(h=><th key={h} className={`px-5 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wide ${h===''?'text-right':'text-left'}`}>{h}</th>)}</tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {filtered.map(s => (
+                <tr key={s.membership_id} className="hover:bg-gray-50 transition">
+                  <td className="px-5 py-4 font-semibold text-gray-800">{s.name}</td>
+                  <td className="px-5 py-4 text-gray-400">{s.email}</td>
+                  <td className="px-5 py-4 text-gray-400">{s.phone||'—'}</td>
+                  <td className="px-5 py-4 text-gray-400 text-xs">{new Date(s.joined_at).toLocaleDateString()}</td>
+                  <td className="px-5 py-4 text-right">
+                    <button onClick={()=>setRemoveTarget(s)} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500 transition ml-auto"><FiTrash2 className="w-4 h-4"/></button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <Modal open={showAdd} title="Add Student" onClose={()=>setShowAdd(false)}>
+        <div className="space-y-4">
+          <p className="text-sm text-gray-500">Enter the email of a registered student to add them to your center.</p>
+          <Field label="Student Email" required><input className={inputCls} type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="student@example.com"/></Field>
+          <div className="flex space-x-3">
+            <button onClick={()=>setShowAdd(false)} className="flex-1 px-4 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-600 hover:bg-gray-50 transition">Cancel</button>
+            <button onClick={add} disabled={saving} className="flex-1 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-medium transition disabled:opacity-50">{saving?'Adding...':'Add Student'}</button>
+          </div>
+        </div>
+      </Modal>
+
+      <ConfirmDialog open={!!removeTarget} title="Remove Student" message={`Remove ${removeTarget?.name} from your center?`} confirmLabel="Remove" onConfirm={remove} onCancel={()=>setRemoveTarget(null)} loading={removing}/>
     </div>
   );
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// MAIN Dashboard
+// MAIN DASHBOARD
 // ═══════════════════════════════════════════════════════════════════════════════
+const TABS = [
+  { key: 'overview',  label: 'Overview',  icon: FiHome },
+  { key: 'courses',   label: 'Courses',   icon: FiBook },
+  { key: 'teachers',  label: 'Teachers',  icon: FiUsers },
+  { key: 'students',  label: 'Students',  icon: FiUsers },
+];
+
 const CoachingAdminDashboard = () => {
-  const { user } = useAuthStore();
-  const [center, setCenter] = useState(null);
   const [activeTab, setActiveTab] = useState('overview');
+  const [center, setCenter] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api.get('/centers/mine/')
-      .then(r => setCenter(r.data.data))
-      .catch(() => {})
-      .finally(() => setLoading(false));
+    api.get('/centers/mine/').then(r => setCenter(r.data.data)).catch(() => setCenter(null)).finally(() => setLoading(false));
   }, []);
-
-  const tabs = [
-    { key: 'overview',  label: 'Overview',        icon: FiHome },
-    { key: 'courses',   label: 'Courses & Batches',icon: FiBook },
-    { key: 'teachers',  label: 'Teachers',         icon: FiUsers },
-    { key: 'students',  label: 'Students',         icon: FiUserPlus },
-    { key: 'assign',    label: 'Assign Teacher',   icon: FiAward },
-  ];
 
   if (loading) return <Loading />;
 
   return (
     <div className="space-y-6">
-      {/* Welcome */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-800">
-            {user?.role_name === 'teacher' ? '👨‍🏫' : '🏫'} {center?.center_name || 'Coaching Dashboard'}
-          </h1>
-          <p className="text-sm text-gray-500 mt-0.5">Welcome back, {user?.name}</p>
-        </div>
-        <span className="text-xs text-gray-400 bg-gray-100 px-3 py-1 rounded-full capitalize">
-          {user?.role_name?.replace(/_/g, ' ') || 'Staff'}
-        </span>
+      <div>
+        <h1 className="text-2xl font-bold text-gray-800">Coaching Dashboard</h1>
+        {center
+          ? <p className="text-gray-400 text-sm mt-0.5">{center.center_name} · {center.location}</p>
+          : <p className="text-amber-600 text-sm mt-0.5 flex items-center space-x-1"><FiAlertTriangle className="w-4 h-4"/><span>No approved center found. Contact system admin.</span></p>
+        }
       </div>
 
       {/* Tab bar */}
-      <div className="flex gap-1 bg-gray-100 rounded-xl p-1 overflow-x-auto">
-        {tabs.map(({ key, label, icon: Icon }) => (
-          <button
-            key={key}
-            onClick={() => setActiveTab(key)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all flex-shrink-0 ${
-              activeTab === key
-                ? 'bg-white text-blue-600 shadow-sm font-semibold'
-                : 'text-gray-500 hover:text-gray-700 hover:bg-white/50'
-            }`}
-          >
-            <Icon className="w-4 h-4" />
-            <span className="hidden sm:inline">{label}</span>
+      <div className="flex space-x-1 border-b border-gray-100 overflow-x-auto">
+        {TABS.map(({ key, label, icon: Icon }) => (
+          <button key={key} onClick={() => setActiveTab(key)}
+            className={`flex items-center space-x-2 px-5 py-3 text-sm font-medium border-b-2 whitespace-nowrap transition-colors ${
+              activeTab === key ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-400 hover:text-gray-700'
+            }`}>
+            <Icon className="w-4 h-4"/><span>{label}</span>
           </button>
         ))}
       </div>
 
-      {/* Tab content */}
-      <div>
-        {activeTab === 'overview'  && <OverviewTab center={center} />}
-        {activeTab === 'courses'   && <CoursesTab center={center} />}
-        {activeTab === 'teachers'  && <TeachersTab center={center} />}
-        {activeTab === 'students'  && <StudentsTab center={center} />}
-        {activeTab === 'assign'    && <AssignTeacherTab center={center} />}
-      </div>
+      {activeTab === 'overview'  && <OverviewTab  center={center} />}
+      {activeTab === 'courses'   && <CoursesTab   center={center} />}
+      {activeTab === 'teachers'  && <TeachersTab  center={center} />}
+      {activeTab === 'students'  && <StudentsTab  center={center} />}
     </div>
   );
 };
 
 export default CoachingAdminDashboard;
-
-
