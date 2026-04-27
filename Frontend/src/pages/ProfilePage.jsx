@@ -14,7 +14,7 @@ const ProfilePage = () => {
     address:       user?.address       || '',
     date_of_birth: user?.date_of_birth || '',
     gender:        user?.gender        || '',
-    // ❌ email এখানে নেই — ProfileUpdateSerializer এ email নেই
+
   });
 
   const handleChange = (e) => {
@@ -27,14 +27,11 @@ const ProfilePage = () => {
     setLoading(true);
 
     try {
-      // ✅ Empty string গুলো null করে পাঠাও — backend allow_blank=True হলেও
-      //    empty string কখনো কখনো validation fail করে
       const payload = {};
       Object.entries(formData).forEach(([key, value]) => {
         if (value !== '') {
           payload[key] = value;
         }
-        // gender, date_of_birth — empty হলে null পাঠাও
         if (value === '' && ['gender', 'date_of_birth'].includes(key)) {
           payload[key] = null;
         }
